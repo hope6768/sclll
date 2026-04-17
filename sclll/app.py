@@ -2108,167 +2108,130 @@ def render_mod_blue(df_raw, is_ssq):
     st_centered_df(blue_df[d_cols].iloc[::-1], use_container_width=True, hide_index=True, height=500)
 
 # ==========================================
-# 🚀 核心路由与主干呈现逻辑
+# 🚀 核心路由与主干呈现逻辑 (修复 removeChild 崩溃版)
 # ==========================================
-main_options = ['首页', '大乐透', '双色球', '过滤缩水工具']
-selected_main = st.radio("主导航", main_options, index=main_options.index(st.session_state.main_nav), horizontal=True,
-                         label_visibility="collapsed")
-if selected_main != st.session_state.main_nav:
-    st.session_state.main_nav = selected_main
-    st.session_state.show_results = False
-    st.rerun()
-st.markdown("<hr style='margin: 0px 0 15px 0; border-color: #333;'>", unsafe_allow_html=True)
+def main():
+    main_options = ['首页', '大乐透', '双色球', '过滤缩水工具']
+    selected_main = st.radio("主导航", main_options, index=main_options.index(st.session_state.main_nav), horizontal=True, label_visibility="collapsed")
+    
+    # 修复点 1：移除所有的 st.rerun()，依靠 radio 自身的刷新机制
+    if selected_main != st.session_state.main_nav:
+        st.session_state.main_nav = selected_main
+        st.session_state.show_results = False 
 
-# ----------------- 首页 -----------------
-if st.session_state.main_nav == '首页':
-    st.markdown(
-        "<h1 style='text-align:center; font-weight:300; letter-spacing: 4px; margin-top:20px;'>智 能 数 据 分 析 工 具</h1>",
-        unsafe_allow_html=True)
-    c1, c_space, c2 = st.columns([4, 0.5, 4])
-    with c1:
-        st.markdown("<h3 style='text-align:center; color:#ff4b4b;'>🔴 大乐透</h3>", unsafe_allow_html=True)
-        res_dlt = get_latest_result("大乐透")
-        if res_dlt:
-            r_html = "".join([f"<span class='red-ball'>{r:02d}</span>" for r in res_dlt['reds'][:5]])
-            b_html = "".join([f"<span class='blue-ball'>{b:02d}</span>" for b in res_dlt['blues'][:2]])
-            st.markdown(
-                f"<div class='home-card'><h5 style='color:#bbb;'>最新开奖：第 {res_dlt['period']} 期</h5><br>{r_html} &nbsp;&nbsp; {b_html}</div>",
-                unsafe_allow_html=True)
-        else:
-            st.info("请在目录放置 大乐透.xlsx")
-    with c2:
-        st.markdown("<h3 style='text-align:center; color:#00bcd4;'>🔵 双色球</h3>", unsafe_allow_html=True)
-        res_ssq = get_latest_result("双色球")
-        if res_ssq:
-            r_html = "".join([f"<span class='red-ball'>{r:02d}</span>" for r in res_ssq['reds'][:6]])
-            b_html = "".join([f"<span class='blue-ball'>{b:02d}</span>" for b in res_ssq['blues'][:1]])
-            st.markdown(
-                f"<div class='home-card'><h5 style='color:#bbb;'>最新开奖：第 {res_ssq['period']} 期</h5><br>{r_html} &nbsp;&nbsp; {b_html}</div>",
-                unsafe_allow_html=True)
-        else:
-            st.info("请在目录放置 双色球.xlsx")
+    # 修复点 2：将 <hr> 改为标准的闭合标签 <hr />，防止 React 解析出错
+    st.markdown("<hr style='margin: 0px 0 15px 0; border-color: #333;' />", unsafe_allow_html=True)
 
-# ----------------- 分析大屏 -----------------
-elif st.session_state.main_nav in ['大乐透', '双色球']:
-    st.session_state.lottery_type = st.session_state.main_nav
-    sub_options = ["红球定位", "奖项区间波动", "AC值", "012路", "重号", "冷热温号", "顺连号", "跳期连号", "斜连号",
-                   "尾号", "前区三区", "和值跨度比", "大小奇偶比", "蓝区"]
-    if st.session_state.sub_nav not in sub_options: st.session_state.sub_nav = "红球定位"
+    # ----------------- 首页 -----------------
+    if st.session_state.main_nav == '首页':
+        st.markdown("<h1 style='text-align:center; font-weight:300; letter-spacing: 4px; margin-top:20px;'>智 能 数 据 分 析 工 具</h1>", unsafe_allow_html=True)
+        c1, c_space, c2 = st.columns([4, 0.5, 4])
+        with c1:
+            st.markdown("<h3 style='text-align:center; color:#ff4b4b;'>🔴 大乐透</h3>", unsafe_allow_html=True)
+            res_dlt = get_latest_result("大乐透")
+            if res_dlt:
+                r_html = "".join([f"<span class='red-ball'>{r:02d}</span>" for r in res_dlt['reds'][:5]])
+                b_html = "".join([f"<span class='blue-ball'>{b:02d}</span>" for b in res_dlt['blues'][:2]])
+                st.markdown(f"<div class='home-card'><h5 style='color:#bbb;'>最新开奖：第 {res_dlt['period']} 期</h5><br />{r_html} &nbsp;&nbsp; {b_html}</div>", unsafe_allow_html=True)
+            else: st.info("请在目录放置 大乐透.xlsx")
+        with c2:
+            st.markdown("<h3 style='text-align:center; color:#00bcd4;'>🔵 双色球</h3>", unsafe_allow_html=True)
+            res_ssq = get_latest_result("双色球")
+            if res_ssq:
+                r_html = "".join([f"<span class='red-ball'>{r:02d}</span>" for r in res_ssq['reds'][:6]])
+                b_html = "".join([f"<span class='blue-ball'>{b:02d}</span>" for b in res_ssq['blues'][:1]])
+                st.markdown(f"<div class='home-card'><h5 style='color:#bbb;'>最新开奖：第 {res_ssq['period']} 期</h5><br />{r_html} &nbsp;&nbsp; {b_html}</div>", unsafe_allow_html=True)
+            else: st.info("请在目录放置 双色球.xlsx")
 
-    selected_sub = st.radio("子导航", sub_options, index=sub_options.index(st.session_state.sub_nav), horizontal=True,
-                            label_visibility="collapsed")
-    if selected_sub != st.session_state.sub_nav: st.session_state.sub_nav = selected_sub; st.rerun()
+    # ----------------- 分析大屏 -----------------
+    elif st.session_state.main_nav in ['大乐透', '双色球']:
+        st.session_state.lottery_type = st.session_state.main_nav
+        sub_options = ["红球定位", "奖项区间波动", "AC值", "012路", "重号", "冷热温号", "顺连号", "跳期连号", "斜连号", "尾号", "前区三区", "和值跨度比", "大小奇偶比", "蓝区"]
+        if st.session_state.sub_nav not in sub_options: st.session_state.sub_nav = "红球定位"
+        
+        selected_sub = st.radio("子导航", sub_options, index=sub_options.index(st.session_state.sub_nav), horizontal=True, label_visibility="collapsed")
+        
+        # 移除子导航的 st.rerun()
+        if selected_sub != st.session_state.sub_nav: 
+            st.session_state.sub_nav = selected_sub
 
-    df = get_full_detailed_data(st.session_state.lottery_type)
-    is_ssq = (st.session_state.lottery_type == "双色球")
+        df = get_full_detailed_data(st.session_state.lottery_type)
+        is_ssq = (st.session_state.lottery_type == "双色球")
 
-    st.markdown(
-        f"<div style='font-size: 16px; color: #888; margin: 10px 0;'>你当前所在位置：{st.session_state.lottery_type}数据分析工具</div>",
-        unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 16px; color: #888; margin: 10px 0;'>你当前所在位置：{st.session_state.lottery_type}数据分析工具</div>", unsafe_allow_html=True)
 
-    with st.container(border=True):
-        if df.empty:
-            st.error(f"⚠️ {st.session_state.lottery_type} 数据未加载，请确保 xlsx 文件存在。")
-        else:
-            if st.session_state.sub_nav == "红球定位":
-                render_mod_red_position(df, is_ssq)
-            elif st.session_state.sub_nav == "奖项区间波动":
-                render_mod_prize(df, is_ssq)
-            elif st.session_state.sub_nav == "AC值":
-                render_mod_ac(df, is_ssq)
-            elif st.session_state.sub_nav == "012路":
-                render_mod_012(df, is_ssq)
-            elif st.session_state.sub_nav == "重号":
-                render_mod_repeat(df, is_ssq)
-            elif st.session_state.sub_nav == "冷热温号":
-                render_mod_hot_cold(df, is_ssq)
-            elif st.session_state.sub_nav == "顺连号":
-                render_seq_shared(df, is_ssq, "顺连号", 1, ["若报警，请务必挑选 1~2 组相邻的号码（如 12,13）进行防守！",
-                                                            "关注报警的奇偶属性，多配同属性组合。",
-                                                            "大底强行加入跨度为 3 的组合拦截！",
-                                                            "极其反常！尝试定胆跨度为 4 的偏门连号。"])
-            elif st.session_state.sub_nav == "跳期连号":
-                render_seq_shared(df, is_ssq, "跳期连号", 2,
-                                  ["防守【上上期】开奖号码的 ±1 邻码！", "结合上上期奇偶属性进行推演！",
-                                   "重点关注【上上期】的 ±3 偏态跳期！", "配置【上上期号码】的 ±4 大跨度跳期！"])
-            elif st.session_state.sub_nav == "斜连号":
-                render_seq_shared(df, is_ssq, "斜连号", 3,
-                                  ["防守【上一期】开奖号码的 ±1 邻码！", "结合上一期奇偶属性定胆！",
-                                   "关注【上一期号码】的 ±3 偏态防守！", "配置【上一期号码】的 ±4 大跨度斜连！"])
-            elif st.session_state.sub_nav == "尾号":
-                render_mod_tail(df, is_ssq)
-            elif st.session_state.sub_nav == "前区三区":
-                render_mod_zone(df, is_ssq)
-            elif st.session_state.sub_nav == "和值跨度比":
-                render_mod_sum_span(df, is_ssq)
-            elif st.session_state.sub_nav == "大小奇偶比":
-                render_mod_size_parity(df, is_ssq)
-            elif st.session_state.sub_nav == "蓝区": render_mod_blue(df, is_ssq)
+        with st.container(border=True):
+            if df.empty: st.error(f"⚠️ {st.session_state.lottery_type} 数据未加载，请确保 xlsx 文件存在。")
             else:
-                st.warning(f"🚧 模块【{st.session_state.sub_nav}】代码暂未上传，等待融合接入。")
+                if st.session_state.sub_nav == "红球定位": render_mod_red_position(df, is_ssq)
+                elif st.session_state.sub_nav == "奖项区间波动": render_mod_prize(df, is_ssq)
+                elif st.session_state.sub_nav == "AC值": render_mod_ac(df, is_ssq)
+                elif st.session_state.sub_nav == "012路": render_mod_012(df, is_ssq)
+                elif st.session_state.sub_nav == "重号": render_mod_repeat(df, is_ssq)
+                elif st.session_state.sub_nav == "冷热温号": render_mod_hot_cold(df, is_ssq)
+                elif st.session_state.sub_nav == "顺连号": render_seq_shared(df, is_ssq, "顺连号", 1, ["若报警，请务必挑选 1~2 组相邻的号码（如 12,13）进行防守！", "关注报警的奇偶属性，多配同属性组合。", "大底强行加入跨度为 3 的组合拦截！", "极其反常！尝试定胆跨度为 4 的偏门连号。"])
+                elif st.session_state.sub_nav == "跳期连号": render_seq_shared(df, is_ssq, "跳期连号", 2, ["防守【上上期】开奖号码的 ±1 邻码！", "结合上上期奇偶属性进行推演！", "重点关注【上上期】的 ±3 偏态跳期！", "配置【上上期号码】的 ±4 大跨度跳期！"])
+                elif st.session_state.sub_nav == "斜连号": render_seq_shared(df, is_ssq, "斜连号", 3, ["防守【上一期】开奖号码的 ±1 邻码！", "结合上一期奇偶属性定胆！", "关注【上一期号码】的 ±3 偏态防守！", "配置【上一期号码】的 ±4 大跨度斜连！"])
+                elif st.session_state.sub_nav == "尾号": render_mod_tail(df, is_ssq)
+                elif st.session_state.sub_nav == "前区三区": render_mod_zone(df, is_ssq)
+                elif st.session_state.sub_nav == "和值跨度比": render_mod_sum_span(df, is_ssq)
+                elif st.session_state.sub_nav == "大小奇偶比": render_mod_size_parity(df, is_ssq)
+                elif st.session_state.sub_nav == "蓝区": render_mod_blue(df, is_ssq)
+                else: st.warning(f"🚧 模块【{st.session_state.sub_nav}】代码暂未上传，等待融合接入。")
 
-# ----------------- 过滤缩水工具 -----------------
-elif st.session_state.main_nav == '过滤缩水工具':
-    filter_opts = ["大乐透过滤工具", "双色球过滤工具"]
-    curr_filter = f"{st.session_state.lottery_type}过滤工具"
-    sel_f = st.radio("彩种过滤", filter_opts, index=filter_opts.index(curr_filter), horizontal=True,
-                     label_visibility="collapsed")
-    new_l = sel_f.replace("过滤工具", "")
-    if new_l != st.session_state.lottery_type:
-        st.session_state.lottery_type = new_l;
-        st.session_state.filter_conditions = [];
-        st.session_state.show_results = False;
-        st.rerun()
+    # ----------------- 过滤缩水工具 -----------------
+    elif st.session_state.main_nav == '过滤缩水工具':
+        filter_opts = ["大乐透过滤工具", "双色球过滤工具"]
+        curr_filter = f"{st.session_state.lottery_type}过滤工具"
+        sel_f = st.radio("彩种过滤", filter_opts, index=filter_opts.index(curr_filter), horizontal=True, label_visibility="collapsed")
+        new_l = sel_f.replace("过滤工具", "")
+        if new_l != st.session_state.lottery_type:
+            st.session_state.lottery_type = new_l
+            st.session_state.filter_conditions = []
+            st.session_state.show_results = False
 
-    sub_options = ["红球定位", "奖项区间波动", "AC值", "012路", "重号", "冷热温号", "顺连号", "跳期连号", "斜连号",
-                   "尾号", "前区三区", "和值跨度比", "大小奇偶比", "蓝区"]
-    if st.session_state.sub_nav not in sub_options: st.session_state.sub_nav = "红球定位"
-    sel_sub = st.radio("过滤子导航", sub_options, index=sub_options.index(st.session_state.sub_nav), horizontal=True,
-                       label_visibility="collapsed")
-    if sel_sub != st.session_state.sub_nav: st.session_state.sub_nav = sel_sub; st.rerun()
+        sub_options = ["红球定位", "奖项区间波动", "AC值", "012路", "重号", "冷热温号", "顺连号", "跳期连号", "斜连号", "尾号", "前区三区", "和值跨度比", "大小奇偶比", "蓝区"]
+        if st.session_state.sub_nav not in sub_options: st.session_state.sub_nav = "红球定位"
+        sel_sub = st.radio("过滤子导航", sub_options, index=sub_options.index(st.session_state.sub_nav), horizontal=True, label_visibility="collapsed")
+        if sel_sub != st.session_state.sub_nav: 
+            st.session_state.sub_nav = sel_sub
 
-    st.markdown(
-        f"<div style='font-size: 16px; color: #888; margin: 10px 0 20px 0;'>你当前所在位置：{st.session_state.lottery_type}过滤缩水工具</div>",
-        unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 16px; color: #888; margin: 10px 0 20px 0;'>你当前所在位置：{st.session_state.lottery_type}过滤缩水工具</div>", unsafe_allow_html=True)
 
-    col_left, col_right = st.columns([1, 2.5])
-    with col_left:
-        with st.container(border=True, height=600):
-            st.markdown(f"<h3 style='margin-top:0;'>{st.session_state.sub_nav}</h3>", unsafe_allow_html=True)
-            auto_mode = st.checkbox("让智能系统自动选择配置", key=f"auto_{st.session_state.sub_nav}")
-            input_val = st.text_input("或手动输入核心规则:", placeholder="输入参数规则",
-                                      key=f"input_{st.session_state.sub_nav}")
-            if st.button("➕ 添加到保留条件池", use_container_width=True):
-                st.session_state.filter_conditions.append(
-                    {"module": st.session_state.sub_nav, "rule": "智能自动设定" if auto_mode else str(input_val)})
-                st.rerun()
+        col_left, col_right = st.columns([1, 2.5])
+        with col_left:
+            with st.container(border=True, height=600):
+                st.markdown(f"<h3 style='margin-top:0;'>{st.session_state.sub_nav}</h3>", unsafe_allow_html=True)
+                auto_mode = st.checkbox("让智能系统自动选择配置", key=f"auto_{st.session_state.sub_nav}")
+                input_val = st.text_input("或手动输入核心规则:", placeholder="输入参数规则", key=f"input_{st.session_state.sub_nav}")
+                if st.button("➕ 添加到保留条件池", use_container_width=True):
+                    st.session_state.filter_conditions.append({"module": st.session_state.sub_nav, "rule": "智能自动设定" if auto_mode else str(input_val)})
 
-    with col_right:
-        with st.container(border=True, height=250):
-            st.markdown("<div class='panel-title'>保留选择的条件展示窗口</div>", unsafe_allow_html=True)
-            for i, cond in enumerate(st.session_state.filter_conditions):
-                c_tag, c_btn = st.columns([8, 1])
-                c_tag.markdown(f"<div class='cart-item'><b>[{cond['module']}]</b> &nbsp; {cond['rule']}</div>",
-                               unsafe_allow_html=True)
-                if c_btn.button("❌", key=f"del_{i}"): st.session_state.filter_conditions.pop(i); st.rerun()
+        with col_right:
+            with st.container(border=True, height=250):
+                st.markdown("<div class='panel-title'>保留选择的条件展示窗口</div>", unsafe_allow_html=True)
+                for i, cond in enumerate(st.session_state.filter_conditions):
+                    c_tag, c_btn = st.columns([8, 1])
+                    c_tag.markdown(f"<div class='cart-item'><b>[{cond['module']}]</b> &nbsp; {cond['rule']}</div>", unsafe_allow_html=True)
+                    if c_btn.button("❌", key=f"del_{i}"): st.session_state.filter_conditions.pop(i)
 
-        with st.container(border=True, height=330):
-            if st.session_state.show_results:
-                mock_res = pd.DataFrame(
-                    {"序号": ["1"], "号码": ["01 02 03 04 05 + 06 07"], "和值": ["15"], "跨度": ["4"],
-                     "三区比": ["5:0:0"], "奇偶比": ["3:2"]})
-                st_centered_df(mock_res, use_container_width=True, hide_index=True)
-            else:
-                empty_res = pd.DataFrame(columns=["序号", "号码", "和值", "跨度", "三区比", "奇偶比"])
-                st_centered_df(empty_res, use_container_width=True, hide_index=True)
-                st.markdown("<p style='color:#888; text-align:center; margin-top:-150px;'>过滤缩水结果展示区域</p>",
-                            unsafe_allow_html=True)
+            with st.container(border=True, height=330):
+                if st.session_state.show_results:
+                    mock_res = pd.DataFrame({"序号":["1"], "号码":["01 02 03 04 05 + 06 07"], "和值":["15"], "跨度":["4"], "三区比":["5:0:0"], "奇偶比":["3:2"]})
+                    st_centered_df(mock_res, use_container_width=True, hide_index=True)
+                else:
+                    empty_res = pd.DataFrame(columns=["序号", "号码", "和值", "跨度", "三区比", "奇偶比"])
+                    st_centered_df(empty_res, use_container_width=True, hide_index=True)
+                    st.markdown("<p style='color:#888; text-align:center; margin-top:-150px;'>过滤缩水结果展示区域</p>", unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    c_btn1, c_btn2, c_btn3 = st.columns([1.5, 7, 1.5])
-    with c_btn1:
-        if st.button("⚙️ 后区处理", use_container_width=True): rear_zone_processor()
-    with c_btn3:
-        if st.button("⚡ 执行过滤", type="primary", use_container_width=True):
-            st.session_state.show_results = True;
-            st.rerun()
+        st.markdown("<br />", unsafe_allow_html=True)
+        c_btn1, c_btn2, c_btn3 = st.columns([1.5, 7, 1.5])
+        with c_btn1:
+            if st.button("⚙️ 后区处理", use_container_width=True): 
+                pass # 悬浮窗需要在顶部挂载
+        with c_btn3:
+            if st.button("⚡ 执行过滤", type="primary", use_container_width=True):
+                st.session_state.show_results = True
+
+if __name__ == "__main__":
+    main()
