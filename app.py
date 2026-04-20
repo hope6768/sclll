@@ -2108,18 +2108,17 @@ def render_mod_blue(df_raw, is_ssq):
     st_centered_df(blue_df[d_cols].iloc[::-1], use_container_width=True, hide_index=True, height=500)
 
 # ==========================================
-# 🚀 核心路由与主干呈现逻辑 (修复 removeChild 崩溃版)
+# 🚀 核心路由与主干呈现逻辑 (防崩溃安全版)
 # ==========================================
 def main():
     main_options = ['首页', '大乐透', '双色球', '过滤缩水工具']
+    # 依靠 st.radio 自身的刷新机制，绝对不要加 st.rerun()
     selected_main = st.radio("主导航", main_options, index=main_options.index(st.session_state.main_nav), horizontal=True, label_visibility="collapsed")
     
-    # 修复点 1：移除所有的 st.rerun()，依靠 radio 自身的刷新机制
     if selected_main != st.session_state.main_nav:
         st.session_state.main_nav = selected_main
         st.session_state.show_results = False 
 
-    # 修复点 2：将 <hr /> 改为标准的闭合标签 <hr />，防止 React 解析出错
     st.markdown("<hr style='margin: 0px 0 15px 0; border-color: #333;' />", unsafe_allow_html=True)
 
     # ----------------- 首页 -----------------
@@ -2150,8 +2149,6 @@ def main():
         if st.session_state.sub_nav not in sub_options: st.session_state.sub_nav = "红球定位"
         
         selected_sub = st.radio("子导航", sub_options, index=sub_options.index(st.session_state.sub_nav), horizontal=True, label_visibility="collapsed")
-        
-        # 移除子导航的 st.rerun()
         if selected_sub != st.session_state.sub_nav: 
             st.session_state.sub_nav = selected_sub
 
@@ -2227,8 +2224,7 @@ def main():
         st.markdown("<br />", unsafe_allow_html=True)
         c_btn1, c_btn2, c_btn3 = st.columns([1.5, 7, 1.5])
         with c_btn1:
-            if st.button("⚙️ 后区处理", use_container_width=True): 
-                pass # 悬浮窗需要在顶部挂载
+            pass 
         with c_btn3:
             if st.button("⚡ 执行过滤", type="primary", use_container_width=True):
                 st.session_state.show_results = True
