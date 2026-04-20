@@ -365,8 +365,8 @@ def render_mod_prize(df, is_ssq):
             <p>该形态在历史上通常每隔 <b>{mode_gap}</b> 期回归。而系统最新计算的<b>动态极限波动阈值</b>为 <b>{dynamic_thresh}</b> 期。当前大盘已彻底击穿布林带上限，进入概率学上的<b>极高压报复性回补区</b>！</p>
             <hr style='border-color:#555;'>
             <h4 style='color:#f9d71c;'>🎯 本期动态智能容错过滤建议：</h4>
-            <p>强烈建议在这一期的缩水软件中，<b>放弃使用模糊的置信区间</b>。直接将软件的伴生奖项过滤条件<b>精确死锁为</b>：<br>
-            <span style='font-size:1.2em; font-weight:bold; color:white;'>{top_combo}</span><br>
+            <p>强烈建议在这一期的缩水软件中，<b>放弃使用模糊的置信区间</b>。直接将软件的伴生奖项过滤条件<b>精确死锁为</b>：<br />
+            <span style='font-size:1.2em; font-weight:bold; color:white;'>{top_combo}</span><br />
             以博取极大概率的均值回归收益！</p>
         </div>
         """, unsafe_allow_html=True)
@@ -472,13 +472,13 @@ def render_mod_prize(df, is_ssq):
     m1, m2 = st.columns(2)
     with m1:
         st.markdown(
-            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br>这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
+            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br />这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
             unsafe_allow_html=True)
         st_centered_df(cold_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
     with m2:
         st.markdown(
-            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br>这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
+            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br />这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
             unsafe_allow_html=True)
         st_centered_df(hot_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
@@ -549,8 +549,8 @@ def render_mod_ac(df, is_ssq):
             <p>经系统测算，该 AC 值在历史上通常每隔 <b>{mode_gap_zero}</b> 期就会进行一次均值回归。当前已进入极限回补区！</p>
             <hr style='border-color:#555;'>
             <h4 style='color:#f9d71c;'>🎯 本期动态容错过滤建议：</h4>
-            <p>本期在配置过滤大底时，<b>请放弃使用区间容错</b>。强烈建议直接将软件的 AC 值条件<b>单点锁定为</b>：<br>
-            <span style='font-size:1.2em; font-weight:bold; color:white;'>AC值 = {top_ac}</span><br>
+            <p>本期在配置过滤大底时，<b>请放弃使用区间容错</b>。强烈建议直接将软件的 AC 值条件<b>单点锁定为</b>：<br />
+            <span style='font-size:1.2em; font-weight:bold; color:white;'>AC值 = {top_ac}</span><br />
             以获取极致的缩水效果！</p>
         </div>
         """, unsafe_allow_html=True)
@@ -561,7 +561,7 @@ def render_mod_ac(df, is_ssq):
             <p style='font-size:1.1em;'>历史最强 AC 值 <b>[{top_ac}]</b> 当前遗漏 <b>{curr_gap}</b> 期，尚未达到历史最易爆发的节点（<b>{mode_gap_zero}</b> 期）。</p>
             <hr style='border-color:#555;'>
             <h4 style='color:#00FF7F;'>💡 常规防守推荐：</h4>
-            <p>本期 AC 走势可能出现横向偏移。建议在过滤条件中设置一定的容错区间，可将过滤条件放宽至：<br>
+            <p>本期 AC 走势可能出现横向偏移。建议在过滤条件中设置一定的容错区间，可将过滤条件放宽至：<br />
             <b>AC值 = {top_ac} 或 AC值 = {top_ac_2_zero}</b>，以防爆冷误杀大奖。</p>
         </div>
         """, unsafe_allow_html=True)
@@ -573,13 +573,13 @@ def render_mod_ac(df, is_ssq):
     min_ac = int(result_df['AC值'].min())
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f"<div class='stat-card'>历史最热 AC 值<br><h2 style='color:#ff4b4b;margin:0;'>{mode_ac}</h2></div>",
+    c1.markdown(f"<div class='stat-card'>历史最热 AC 值<br /><h2 style='color:#ff4b4b;margin:0;'>{mode_ac}</h2></div>",
                 unsafe_allow_html=True)
-    c2.markdown(f"<div class='stat-card'>全量平均 AC 值<br><h2 style='color:#f9d71c;margin:0;'>{avg_ac:.2f}</h2></div>",
+    c2.markdown(f"<div class='stat-card'>全量平均 AC 值<br /><h2 style='color:#f9d71c;margin:0;'>{avg_ac:.2f}</h2></div>",
                 unsafe_allow_html=True)
-    c3.markdown(f"<div class='stat-card'>最大 AC 值<br><h2 style='color:#1c83e1;margin:0;'>{max_ac}</h2></div>",
+    c3.markdown(f"<div class='stat-card'>最大 AC 值<br /><h2 style='color:#1c83e1;margin:0;'>{max_ac}</h2></div>",
                 unsafe_allow_html=True)
-    c4.markdown(f"<div class='stat-card'>最小 AC 值<br><h2 style='color:#1c83e1;margin:0;'>{min_ac}</h2></div>",
+    c4.markdown(f"<div class='stat-card'>最小 AC 值<br /><h2 style='color:#1c83e1;margin:0;'>{min_ac}</h2></div>",
                 unsafe_allow_html=True)
 
     ac_stats = result_df['AC值'].value_counts().reset_index()
@@ -1215,7 +1215,7 @@ def render_metric_card_shared(title, c2, hit2, p2, c2_c, c3, hit3, p3, c3_c, c4,
         return (
             f"<div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left; border-left: 3px solid {color};'>"
             f"<span style='color:#fff; font-weight:bold;'>🔹 {label}:</span> 共 <b style='color:#fff'>{cnt}</b> 组 "
-            f"<span style='color:#bbb; font-size:0.9em;'>(覆盖 <b>{hit}</b> 期，占比 <b>{hit_rate:.2%}</b>)</span><br>"
+            f"<span style='color:#bbb; font-size:0.9em;'>(覆盖 <b>{hit}</b> 期，占比 <b>{hit_rate:.2%}</b>)</span><br />"
             f"<span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>🔸 {tag1}: <b style='color:#fff'>{p}</b> 个 ({(p / pc_tot):.1%}) &nbsp;|&nbsp; {tag2}: <b style='color:#fff'>{c}</b> 个 ({(c / pc_tot):.1%})</span></div>")
 
     lbl2, lbl3, lbl4 = ("尾数2连", "尾数3连", "尾数4连及以上") if is_tail else ("2连形态", "3连形态", "4连及以上")
@@ -1452,7 +1452,7 @@ def render_mod_zone(df, is_ssq):
         brk_rate = break_cnt / total_periods if total_periods else 0
         bst_rate = burst_cnt / total_periods if total_periods else 0
         st.markdown(
-            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 15px;'>{title}</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>💀 绝杀断区 (0个号):</span> 发生 <b style='color:#ff4b4b'>{break_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {brk_rate:.2%})</span><br><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{break_omit}</b> 期</span></div><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔥 极限爆区 (≥4个):</span> 发生 <b style='color:#f9d71c'>{burst_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {bst_rate:.2%})</span><br><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{burst_omit}</b> 期</span></div></div>",
+            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 15px;'>{title}</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>💀 绝杀断区 (0个号):</span> 发生 <b style='color:#ff4b4b'>{break_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {brk_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{break_omit}</b> 期</span></div><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔥 极限爆区 (≥4个):</span> 发生 <b style='color:#f9d71c'>{burst_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {bst_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{burst_omit}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
     with tab0:
@@ -1520,7 +1520,7 @@ def render_mod_zone(df, is_ssq):
         hit_anc = zone_df['锚点命中'].sum()
         anc_rate = hit_anc / total_periods if total_periods else 0
         st.markdown(
-            f"<div class='stat-card' style='border-left: 4px solid #8a2be2;'><h4 style='color: #8a2be2; margin-bottom: 15px;'>🧱 边界锚点活跃度历史统计</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🎯 触碰城墙号:</span> 发生 <b style='color:#8a2be2'>{hit_anc}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {anc_rate:.2%})</span><br><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{last_row['锚点遗漏']}</b> 期</span></div></div>",
+            f"<div class='stat-card' style='border-left: 4px solid #8a2be2;'><h4 style='color: #8a2be2; margin-bottom: 15px;'>🧱 边界锚点活跃度历史统计</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🎯 触碰城墙号:</span> 发生 <b style='color:#8a2be2'>{hit_anc}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {anc_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{last_row['锚点遗漏']}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
     st.markdown("### 📋 二、 历史数据底层明细 (支持检视追踪详情)")
@@ -1645,7 +1645,7 @@ def render_mod_sum_span(df, is_ssq):
     def render_macro_metric_card(title, hit_cnt, hit_omit, total_p, color, desc=""):
         rate = hit_cnt / total_p if total_p else 0
         st.markdown(
-            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘覆盖:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>",
+            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘覆盖:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4 = st.tabs(
@@ -1836,7 +1836,7 @@ def render_mod_size_parity(df, is_ssq):
     def render_ratio_metric_card(title, hit_cnt, hit_omit, color, desc=""):
         rate = hit_cnt / total_periods if total_periods else 0
         st.markdown(
-            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘发生:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>",
+            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘发生:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs(["🧬 基因轨：奇偶比分析", "🌌 空间轨：大小比分析", "⚔️ 双轨联动：比值四象限矩阵"])
@@ -2025,7 +2025,7 @@ def render_mod_blue(df_raw, is_ssq):
 
     def render_blue_metric_card(title, hit_cnt, hit_omit, total_p, color, desc=""):
         rate = hit_cnt / total_p if total_p else 0
-        st.markdown(f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘覆盖:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘覆盖:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>", unsafe_allow_html=True)
 
     # 👑 架构师绝杀修复：直接在代码内强制写入暗黑科技风 CSS 背景框！
     def render_freq_card(title, series_data, total_hits, color):
@@ -2119,7 +2119,7 @@ def main():
         st.session_state.main_nav = selected_main
         st.session_state.show_results = False 
 
-    # 修复点 2：将 <hr> 改为标准的闭合标签 <hr />，防止 React 解析出错
+    # 修复点 2：将 <hr /> 改为标准的闭合标签 <hr />，防止 React 解析出错
     st.markdown("<hr style='margin: 0px 0 15px 0; border-color: #333;' />", unsafe_allow_html=True)
 
     # ----------------- 首页 -----------------
