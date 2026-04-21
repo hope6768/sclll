@@ -162,7 +162,7 @@ def render_mod_red_position(df, is_ssq):
                           "温号池": ",".join([f"{x:02d}" for x in pools[col]['warm']]),
                           "冷号池": ",".join([f"{x:02d}" for x in pools[col]['cold']])})
 
-    st.markdown("### 🚨 零、 架构师 AI 物理极态动态预警")
+    st.markdown("预警")
     alerts = []
     for col in r_cols:
         hit_series = df_feat[col].apply(lambda x: 1 if x in pools[col]['hot'] else 0)
@@ -191,7 +191,7 @@ def render_mod_red_position(df, is_ssq):
             "<div class='safe-card'><h4 style='color:#00FF7F; margin:0;'>✅ 各位次冷热交替均在布林带常态范围内。</h4></div>",
             unsafe_allow_html=True)
 
-    st.markdown("### 🔗 一、 贝叶斯条件概率定胆矩阵")
+    st.markdown("###一、定胆矩阵")
     bayesian_dict = {}
     for i in range(1, red_n): bayesian_dict[f"{i}_to_{i + 1}"] = df_feat.groupby(f'r{i}')[
         f'r{i + 1}'].value_counts().reset_index(name='count')
