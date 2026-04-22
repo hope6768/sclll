@@ -441,56 +441,71 @@ def render_mod_prize(df, is_ssq):
             </div>
             """, unsafe_allow_html=True)
 
-    st.markdown("### ⚡ 四、复合伴生 / 并发专项统计 (一等奖命中前提)")
+    st.markdown("### 四、各奖项同时发生统计 (一等奖命中前提)")
 
     # ==========================================
     # 🌟 第一部分：固定核心伴生组合展示 (已修复0值问题)
     # ==========================================
     if is_ssq:
-        c3 = audit_df.get('伴生3等奖', pd.Series([0]*total_p, index=audit_df.index))
-        c4 = audit_df.get('伴生4等奖', pd.Series([0]*total_p, index=audit_df.index))
-        c5 = audit_df.get('伴生5等奖', pd.Series([0]*total_p, index=audit_df.index))
-        c6 = audit_df.get('伴生6等奖', pd.Series([0]*total_p, index=audit_df.index))
-        cfy = audit_df.get('伴生福运奖', pd.Series([0]*total_p, index=audit_df.index))
+        c3 = audit_df.get('伴生3等奖', pd.Series([0] * total_p, index=audit_df.index))
+        c4 = audit_df.get('伴生4等奖', pd.Series([0] * total_p, index=audit_df.index))
+        c5 = audit_df.get('伴生5等奖', pd.Series([0] * total_p, index=audit_df.index))
+        c6 = audit_df.get('伴生6等奖', pd.Series([0] * total_p, index=audit_df.index))
+        cfy = audit_df.get('伴生福运奖', pd.Series([0] * total_p, index=audit_df.index))
 
         cnt_345 = ((c3 > 0) & (c4 > 0) & (c5 > 0)).sum()
         cnt_456 = ((c4 > 0) & (c5 > 0) & (c6 > 0)).sum()
         cnt_456f = ((c4 > 0) & (c5 > 0) & (c6 > 0) & (cfy > 0)).sum()
 
         col1, col2, col3 = st.columns(3)
-        with col1: st.info(f"**3、4、5等奖【同发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{cnt_345/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_345 if cnt_345 else 0:.1f}** 期/次")
-        with col2: st.warning(f"**4、5、6等奖【同发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{cnt_456/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456 if cnt_456 else 0:.1f}** 期/次")
-        with col3: st.error(f"**4、5、6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{cnt_456f/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456f if cnt_456f else 0:.1f}** 期/次")
-        
-        st.success("**💡 后期筛选建议**\n\n[核心过滤区] 在命中一等奖框架下，密切关注上述最高频组合。若某组合占比极高，建议在容错大底中强制绑定该形态！")
-    
+        with col1:
+            st.info(
+                f"**3、4、5等奖【同发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{cnt_345 / total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p / cnt_345 if cnt_345 else 0:.1f}** 期/次")
+        with col2:
+            st.warning(
+                f"**4、5、6等奖【同发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{cnt_456 / total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p / cnt_456 if cnt_456 else 0:.1f}** 期/次")
+        with col3:
+            st.error(
+                f"**4、5、6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{cnt_456f / total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p / cnt_456f if cnt_456f else 0:.1f}** 期/次")
+
+        st.success(
+            "** 后期筛选建议**\n\n[核心过滤区] 在命中一等奖框架下，关注上述最高频组合。若某组合占比极高，建议绑定该形态！")
+
     else:
-        c4 = audit_df.get('伴生4等奖', pd.Series([0]*total_p, index=audit_df.index))
-        c5 = audit_df.get('伴生5等奖', pd.Series([0]*total_p, index=audit_df.index))
-        c6 = audit_df.get('伴生6等奖', pd.Series([0]*total_p, index=audit_df.index))
-        c7 = audit_df.get(f'伴生{last_prize_name}', pd.Series([0]*total_p, index=audit_df.index))
+        c4 = audit_df.get('伴生4等奖', pd.Series([0] * total_p, index=audit_df.index))
+        c5 = audit_df.get('伴生5等奖', pd.Series([0] * total_p, index=audit_df.index))
+        c6 = audit_df.get('伴生6等奖', pd.Series([0] * total_p, index=audit_df.index))
+        c7 = audit_df.get(f'伴生{last_prize_name}', pd.Series([0] * total_p, index=audit_df.index))
 
         cnt_45 = ((c4 > 0) & (c5 > 0)).sum()
         cnt_56 = ((c5 > 0) & (c6 > 0)).sum()
         cnt_567 = ((c5 > 0) & (c6 > 0) & (c7 > 0)).sum()
 
         col1, col2, col3 = st.columns(3)
-        with col1: st.info(f"**4、5等奖【同发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{cnt_45/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_45 if cnt_45 else 0:.1f}** 期/次")
-        with col2: st.warning(f"**5、6等奖【同发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{cnt_56/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_56 if cnt_56 else 0:.1f}** 期/次")
-        with col3: st.error(f"**5、6、7等奖【同发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{cnt_567/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_567 if cnt_567 else 0:.1f}** 期/次")
+        with col1:
+            st.info(
+                f"**4、5等奖【同发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{cnt_45 / total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p / cnt_45 if cnt_45 else 0:.1f}** 期/次")
+        with col2:
+            st.warning(
+                f"**5、6等奖【同发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{cnt_56 / total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p / cnt_56 if cnt_56 else 0:.1f}** 期/次")
+        with col3:
+            st.error(
+                f"**5、6、7等奖【同发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{cnt_567 / total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p / cnt_567 if cnt_567 else 0:.1f}** 期/次")
 
         best_c = max([("4、5等奖并发", cnt_45), ("5、6等奖并发", cnt_56), ("5、6、7等奖并发", cnt_567)], key=lambda x: x[1])
-        st.success(f"**💡 后期筛选建议 (大乐透)**\n\n[数据洞察] 统计表明在命中一等奖期数中，**【{best_c[0]}】** 形态出现最多（**{best_c[1]}** 次）。\n\n[实战策略] 建议优先锚定该形态作为核心过滤条件！")
-
+        st.success(
+            f"** 后期筛选建议**\n\n[数据洞察] 统计表明在命中一等奖期数中，**【{best_c[0]}】** 形态出现最多（**{best_c[1]}** 次）。\n\n[实战策略] 建议优先锚定该形态作为筛选条件！")
 
     # ==========================================
     # 🌟 第二部分：模式一 - 自定义模糊同出组合追踪
     # ==========================================
     st.markdown("---")
-    st.markdown("#### 🎯 模式一：宽泛组合同出雷达 (只要发生即算)")
-    options_v1 = ['伴生3等奖', '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}'] if is_ssq else ['伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}']
-    
-    selected_prizes_v1 = st.multiselect("请选择需要追踪的奖项组合 (可多选):", options_v1, default=options_v1[:2], key="ms_v1")
+    st.markdown("#### 模式一：筛查奖项组合同出范围 (只要发生即算)")
+    options_v1 = ['伴生3等奖', '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}'] if is_ssq else [
+        '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}']
+
+    selected_prizes_v1 = st.multiselect("请选择需要筛查的奖项组合 (可多选):", options_v1, default=options_v1[:2],
+                                        key="ms_v1")
 
     if selected_prizes_v1:
         mask_v1 = pd.Series([True] * total_p, index=audit_df.index)
@@ -499,67 +514,70 @@ def render_mod_prize(df, is_ssq):
                 mask_v1 = mask_v1 & (audit_df[p] > 0)
             else:
                 mask_v1 = mask_v1 & False
-        
+
         match_cnt_v1 = mask_v1.sum()
         match_rate_v1 = match_cnt_v1 / total_p if total_p else 0
         match_gap_v1 = total_p / match_cnt_v1 if match_cnt_v1 else 0
         clean_names_v1 = "+".join([p.replace('伴生', '') for p in selected_prizes_v1])
-        
-        st.markdown(f"""
-        <div style='background-color:rgba(0, 188, 212, 0.1); border-left:4px solid #00bcd4; padding:15px; border-radius:5px;'>
-            <h5 style='color:#00bcd4; margin-top:0;'>🔭 【{clean_names_v1}】 只要同时出现过的统计：</h5>
-            <ul style='font-size:1.05em; margin-bottom:0;'>
-                <li>命中期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v1}</b> 次</li>
-                <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v1:.2%}</b></li>
-                <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v1:.1f}</b> 期一次</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
 
+        st.markdown(f"""
+            <div style='background-color:rgba(0, 188, 212, 0.1); border-left:4px solid #00bcd4; padding:15px; border-radius:5px;'>
+                <h5 style='color:#00bcd4; margin-top:0;'> 【{clean_names_v1}】 同时出现统计：</h5>
+                <ul style='font-size:1.05em; margin-bottom:0;'>
+                    <li>命中期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v1}</b> 次</li>
+                    <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v1:.2%}</b></li>
+                    <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v1:.1f}</b> 期一次</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
 
     # ==========================================
     # 🌟 第三部分：模式二 - 自定义精确次数追踪雷达 (精算级)
     # ==========================================
     st.markdown("---")
-    st.markdown("#### 🎯 模式二：精确次数死锁雷达 (精算级)")
+    st.markdown("#### 模式二：各奖项次数筛查 (精算级)")
     available_prizes = [col for col in audit_df.columns if str(col).startswith('伴生')]
-    
-    selected_prizes_v2 = st.multiselect("第一步：选择需要【精确次数】死锁的奖项 (全量覆盖):", available_prizes, key="ms_v2")
+
+    selected_prizes_v2 = st.multiselect("第一步：选择需要【奖项次数】(全量覆盖):", available_prizes,
+                                        key="ms_v2")
 
     if selected_prizes_v2:
-        st.markdown("<p style='font-size:0.95em; color:#bbb; margin-bottom: 5px;'>第二步：请输入这些奖项的<b>具体发生次数</b>：</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size:0.95em; color:#bbb; margin-bottom: 5px;'>第二步：请输入各等级奖项的<b>次数</b>：</p>",
+            unsafe_allow_html=True)
         cols = st.columns(len(selected_prizes_v2))
         target_counts = {}
         for i, p_col in enumerate(selected_prizes_v2):
             with cols[i]:
-                target_counts[p_col] = st.number_input(f"{p_col.replace('伴生', '')} (次):", min_value=0, max_value=1000, value=0, step=1, key=f"ni_{p_col}")
-        
+                target_counts[p_col] = st.number_input(f"{p_col.replace('伴生', '')} (次):", min_value=0,
+                                                       max_value=1000, value=0, step=1, key=f"ni_{p_col}")
+
         mask_v2 = pd.Series([True] * total_p, index=audit_df.index)
         query_parts = []
         for p_col, target_val in target_counts.items():
             mask_v2 = mask_v2 & (audit_df[p_col] == target_val)
             query_parts.append(f"{p_col.replace('伴生', '')}={target_val}次")
-        
+
         match_cnt_v2 = mask_v2.sum()
         match_rate_v2 = match_cnt_v2 / total_p if total_p else 0
         match_gap_v2 = total_p / match_cnt_v2 if match_cnt_v2 else 0
         query_display = " + ".join(query_parts)
-        
+
         if match_cnt_v2 > 0:
             st.markdown(f"""
-            <div style='background-color:rgba(255, 152, 0, 0.1); border-left:4px solid #ff9800; padding:15px; border-radius:5px; margin-top:15px;'>
-                <h5 style='color:#ff9800; margin-top:0;'>🔬 精算组合 【{query_display}】 统计：</h5>
-                <ul style='font-size:1.05em; margin-bottom:0;'>
-                    <li>精确匹配期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v2}</b> 次</li>
-                    <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v2:.2%}</b></li>
-                    <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v2:.1f}</b> 期一次</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+                <div style='background-color:rgba(255, 152, 0, 0.1); border-left:4px solid #ff9800; padding:15px; border-radius:5px; margin-top:15px;'>
+                    <h5 style='color:#ff9800; margin-top:0;'> 精算组合 【{query_display}】 统计：</h5>
+                    <ul style='font-size:1.05em; margin-bottom:0;'>
+                        <li>匹配期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v2}</b> 次</li>
+                        <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v2:.2%}</b></li>
+                        <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v2:.1f}</b> 期一次</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.warning(f"⚠️ 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
-    
-    st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
+            st.warning(
+                f" 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
+    st.markdown("###  五、历史各奖项累积命中冷热统计")
     min_comp = audit_df['总伴生奖项数'].min()
     cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
     max_comp = audit_df['总伴生奖项数'].max()
@@ -568,15 +586,15 @@ def render_mod_prize(df, is_ssq):
     m1, m2 = st.columns(2)
     with m1:
         st.markdown(
-            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br />这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
+            f"<div class='warn-card'><b>️ 冷门期 (奖项累积最少：{min_comp}次)</b><br />这些奖项次数虽然中了一等奖，但几乎没有带出其他下级奖。</div>",
             unsafe_allow_html=True)
-        st_centered_df(cold_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
+        st_centered_df(cold_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
     with m2:
         st.markdown(
-            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br />这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
+            f"<div class='warn-card-green'><b> 狂热期 (奖项累积最多：{max_comp}次)</b><br />这些奖项次数的号码特征极具普遍性，带出了海量的下级奖。</div>",
             unsafe_allow_html=True)
-        st_centered_df(hot_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
+        st_centered_df(hot_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
 
     st.markdown("### 📋 六、 伴生区间波动明细 (全量数据)")
