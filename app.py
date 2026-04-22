@@ -444,38 +444,47 @@ def render_mod_prize(df, is_ssq):
     st.markdown("### ⚡ 四、复合伴生 / 并发专项统计 (一等奖命中前提)")
 
     # ==========================================
-    # 基础固定统计：直接读取真实存在的 '伴生X等奖' 列
+    # 🌟 第一部分：固定核心伴生组合展示 (已修复0值问题)
     # ==========================================
     if is_ssq:
-        c3, c4, c5, c6, cfy = audit_df['伴生3等奖'], audit_df['伴生4等奖'], audit_df['伴生5等奖'], audit_df['伴生6等奖'], audit_df['伴生福运奖']
+        c3 = audit_df.get('伴生3等奖', pd.Series([0]*total_p, index=audit_df.index))
+        c4 = audit_df.get('伴生4等奖', pd.Series([0]*total_p, index=audit_df.index))
+        c5 = audit_df.get('伴生5等奖', pd.Series([0]*total_p, index=audit_df.index))
+        c6 = audit_df.get('伴生6等奖', pd.Series([0]*total_p, index=audit_df.index))
+        cfy = audit_df.get('伴生福运奖', pd.Series([0]*total_p, index=audit_df.index))
+
         cnt_345 = ((c3 > 0) & (c4 > 0) & (c5 > 0)).sum()
         cnt_456 = ((c4 > 0) & (c5 > 0) & (c6 > 0)).sum()
         cnt_456f = ((c4 > 0) & (c5 > 0) & (c6 > 0) & (cfy > 0)).sum()
 
         col1, col2, col3 = st.columns(3)
-        with col1: st.info(f"**3,4,5等奖【同发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{cnt_345/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_345 if cnt_345 else 0:.1f}** 期/次")
-        with col2: st.warning(f"**4,5,6等奖【同发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{cnt_456/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456 if cnt_456 else 0:.1f}** 期/次")
-        with col3: st.error(f"**4,5,6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{cnt_456f/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456f if cnt_456f else 0:.1f}** 期/次")
+        with col1: st.info(f"**3、4、5等奖【同发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{cnt_345/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_345 if cnt_345 else 0:.1f}** 期/次")
+        with col2: st.warning(f"**4、5、6等奖【同发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{cnt_456/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456 if cnt_456 else 0:.1f}** 期/次")
+        with col3: st.error(f"**4、5、6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{cnt_456f/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456f if cnt_456f else 0:.1f}** 期/次")
         
         st.success("**💡 后期筛选建议**\n\n[核心过滤区] 在命中一等奖框架下，密切关注上述最高频组合。若某组合占比极高，建议在容错大底中强制绑定该形态！")
     
     else:
-        c4, c5, c6, c7 = audit_df['伴生4等奖'], audit_df['伴生5等奖'], audit_df['伴生6等奖'], audit_df[f'伴生{last_prize_name}']
+        c4 = audit_df.get('伴生4等奖', pd.Series([0]*total_p, index=audit_df.index))
+        c5 = audit_df.get('伴生5等奖', pd.Series([0]*total_p, index=audit_df.index))
+        c6 = audit_df.get('伴生6等奖', pd.Series([0]*total_p, index=audit_df.index))
+        c7 = audit_df.get(f'伴生{last_prize_name}', pd.Series([0]*total_p, index=audit_df.index))
+
         cnt_45 = ((c4 > 0) & (c5 > 0)).sum()
         cnt_56 = ((c5 > 0) & (c6 > 0)).sum()
         cnt_567 = ((c5 > 0) & (c6 > 0) & (c7 > 0)).sum()
 
         col1, col2, col3 = st.columns(3)
-        with col1: st.info(f"**4,5等奖【同发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{cnt_45/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_45 if cnt_45 else 0:.1f}** 期/次")
-        with col2: st.warning(f"**5,6等奖【同发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{cnt_56/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_56 if cnt_56 else 0:.1f}** 期/次")
-        with col3: st.error(f"**5,6,7等奖【同发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{cnt_567/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_567 if cnt_567 else 0:.1f}** 期/次")
+        with col1: st.info(f"**4、5等奖【同发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{cnt_45/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_45 if cnt_45 else 0:.1f}** 期/次")
+        with col2: st.warning(f"**5、6等奖【同发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{cnt_56/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_56 if cnt_56 else 0:.1f}** 期/次")
+        with col3: st.error(f"**5、6、7等奖【同发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{cnt_567/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_567 if cnt_567 else 0:.1f}** 期/次")
 
         best_c = max([("4、5等奖并发", cnt_45), ("5、6等奖并发", cnt_56), ("5、6、7等奖并发", cnt_567)], key=lambda x: x[1])
         st.success(f"**💡 后期筛选建议 (大乐透)**\n\n[数据洞察] 统计表明在命中一等奖期数中，**【{best_c[0]}】** 形态出现最多（**{best_c[1]}** 次）。\n\n[实战策略] 建议优先锚定该形态作为核心过滤条件！")
 
 
     # ==========================================
-    # 🌟 模式一：自定义模糊同出组合追踪
+    # 🌟 第二部分：模式一 - 自定义模糊同出组合追踪
     # ==========================================
     st.markdown("---")
     st.markdown("#### 🎯 模式一：宽泛组合同出雷达 (只要发生即算)")
@@ -486,7 +495,10 @@ def render_mod_prize(df, is_ssq):
     if selected_prizes_v1:
         mask_v1 = pd.Series([True] * total_p, index=audit_df.index)
         for p in selected_prizes_v1:
-            mask_v1 = mask_v1 & (audit_df[p] > 0)
+            if p in audit_df.columns:
+                mask_v1 = mask_v1 & (audit_df[p] > 0)
+            else:
+                mask_v1 = mask_v1 & False
         
         match_cnt_v1 = mask_v1.sum()
         match_rate_v1 = match_cnt_v1 / total_p if total_p else 0
@@ -506,7 +518,7 @@ def render_mod_prize(df, is_ssq):
 
 
     # ==========================================
-    # 🌟 模式二：自定义精确次数追踪雷达 (精算级)
+    # 🌟 第三部分：模式二 - 自定义精确次数追踪雷达 (精算级)
     # ==========================================
     st.markdown("---")
     st.markdown("#### 🎯 模式二：精确次数死锁雷达 (精算级)")
