@@ -188,7 +188,7 @@ def render_mod_red_position(df, is_ssq):
             unsafe_allow_html=True)
     else:
         st.markdown(
-            "<div class='safe-card'><h4 style='color:#00FF7F; margin:0;'>✅ 各位次冷热交替均在布林带常态范围内。</h4></div>",
+            "<div class='safe-card'><h4 style='color:#00FF7F; margin:0;'> 各位次冷热交替均在布林带常态范围内。</h4></div>",
             unsafe_allow_html=True)
 
     st.markdown("### 定胆矩阵")
