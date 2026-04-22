@@ -443,79 +443,37 @@ def render_mod_prize(df, is_ssq):
 
    st.markdown("### ⚡ 四、复合伴生 / 并发专项统计 (一等奖命中前提)")
 
-# 🛠️ 智能嗅探引擎：自动适配你表中的列名，防止报错
 def get_prize_col(df, possible_names):
     for name in possible_names:
-        if name in df.columns:
-            return df[name]
+        if name in df.columns: return df[name]
     return pd.Series([0] * len(df), index=df.index)
-if is_ssq:
-    # 提取双色球基础奖项列
-    c3 = get_prize_col(audit_df, ['C3', '3等奖', '三等奖'])
-    c4 = get_prize_col(audit_df, ['C4', '4等奖', '四等奖'])
-    c5 = get_prize_col(audit_df, ['C5', '5等奖', '五等奖'])
-    c6 = get_prize_col(audit_df, ['C6', '6等奖', '六等奖'])
-    cfy = get_prize_col(audit_df, ['福运奖', 'C福运', 'C7', '7等奖']) # 兼容可能叫福运或C7
 
-    # 动态计算并发形态
-    mask_345 = (c3 > 0) & (c4 > 0) & (c5 > 0)
-    mask_456 = (c4 > 0) & (c5 > 0) & (c6 > 0)
-    mask_456f = (c4 > 0) & (c5 > 0) & (c6 > 0) & (cfy > 0)
-    cnt_345 = mask_345.sum()
-    cnt_456 = mask_456.sum()
-    cnt_456f = mask_456f.sum()
+if is_ssq:
+    c3, c4, c5, c6, cfy = [get_prize_col(audit_df, names) for names in [['C3', '3等奖'], ['C4', '4等奖'], ['C5', '5等奖'], ['C6', '6等奖'], ['福运奖', 'C7']]]
+    cnt_345 = ((c3 > 0) & (c4 > 0) & (c5 > 0)).sum()
+    cnt_456 = ((c4 > 0) & (c5 > 0) & (c6 > 0)).sum()
+    cnt_456f = ((c4 > 0) & (c5 > 0) & (c6 > 0) & (cfy > 0)).sum()
 
     col1, col2, col3 = st.columns(3)
-    with col1:
-        rate = cnt_345 / total_p if total_p else 0
-        gap = total_p / cnt_345 if cnt_345 else 0
-        st.info(f"**3、4、5等奖【同时并发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{rate:.2%}**\n\n平均频次: 约 **{gap:.1f}** 期/次")
-    with col2:
-        rate = cnt_456 / total_p if total_p else 0
-        gap = total_p / cnt_456 if cnt_456 else 0
-        st.warning(f"**4、5、6等奖【同时并发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{rate:.2%}**\n\n平均频次: 约 **{gap:.1f}** 期/次")
-    with col3:
-        rate = cnt_456f / total_p if total_p else 0
-        gap = total_p / cnt_456f if cnt_456f else 0
-        st.error(f"**4、5、6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{rate:.2%}**\n\n平均频次: 约 **{gap:.1f}** 期/次")
+    with col1: st.info(f"**3、4、5等奖【同发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{cnt_345/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_345 if cnt_345 else 0:.1f}** 期/次")
+    with col2: st.warning(f"**4、5、6等奖【同发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{cnt_456/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456 if cnt_456 else 0:.1f}** 期/次")
+    with col3: st.error(f"**4,5,6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{cnt_456f/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456f if cnt_456f else 0:.1f}** 期/次")
 
-    st.success("**💡 后期筛选建议指标 (双色球)**\n\n[核心过滤区] 在命中一等奖的框架下，密切关注上述最高频的并发组合。若某并发组合占比过高，建议在容错大底中强制绑定该形态！")
+    st.success("**💡 后期筛选建议**\n\n[核心过滤区] 在命中一等奖框架下，密切关注上述最高频组合。若某组合占比极高，建议在容错大底中强制绑定该形态！")
+else:
+    c4, c5, c6, c7 = [get_prize_col(audit_df, names) for names in [['C4', '4等奖'], ['C5', '5等奖'], ['C6', '6等奖'], ['C7', '7等奖']]]
+    cnt_45 = ((c4 > 0) & (c5 > 0)).sum()
+    cnt_56 = ((c5 > 0) & (c6 > 0)).sum()
+    cnt_567 = ((c5 > 0) & (c6 > 0) & (c7 > 0)).sum()
+
+    col1, col2, col3 = st.columns(3)
+    with col1: st.info(f"**4、5等奖【同发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{cnt_45/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_45 if cnt_45 else 0:.1f}** 期/次")
+    with col2: st.warning(f"**5、6等奖【同发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{cnt_56/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_56 if cnt_56 else 0:.1f}** 期/次")
+    with col3: st.error(f"**5、6、7等奖【同发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{cnt_567/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_567 if cnt_567 else 0:.1f}** 期/次")
+
+    best_c = max([("4、5等奖并发", cnt_45), ("5、6等奖并发", cnt_56), ("5、6、7等奖并发", cnt_567)], key=lambda x: x[1])
+    st.success(f"**💡 后期筛选建议 (大乐透)**\n\n[数据洞察] 统计表明在命中一等奖期数中，**【{best_c[0]}】** 形态出现最多（**{best_c[1]}** 次）。\n\n[实战策略] 建议优先锚定该形态作为核心过滤条件！")
     
-    else:
-    # 提取大乐透基础奖项列
-    c4 = get_prize_col(audit_df, ['C4', '4等奖', '四等奖'])
-    c5 = get_prize_col(audit_df, ['C5', '5等奖', '五等奖'])
-    c6 = get_prize_col(audit_df, ['C6', '6等奖', '六等奖'])
-    c7 = get_prize_col(audit_df, ['C7', '7等奖', '七等奖'])
-
-    # 动态计算并发形态
-    mask_45 = (c4 > 0) & (c5 > 0)
-    mask_56 = (c5 > 0) & (c6 > 0)
-    mask_567 = (c5 > 0) & (c6 > 0) & (c7 > 0)
-
-    cnt_45 = mask_45.sum()
-    cnt_56 = mask_56.sum()
-    cnt_567 = mask_567.sum()
-col1, col2, col3 = st.columns(3)
-
-    with col1:
-        rate = cnt_45 / total_p if total_p else 0
-        gap = total_p / cnt_45 if cnt_45 else 0
-        st.info(f"**4、5等奖【同时并发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{rate:.2%}**\n\n平均频次: 约 **{gap:.1f}** 期/次")
-    with col2:
-        rate = cnt_56 / total_p if total_p else 0
-        gap = total_p / cnt_56 if cnt_56 else 0
-        st.warning(f"**5、6等奖【同时并发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{rate:.2%}**\n\n平均频次: 约 **{gap:.1f}** 期/次")
-    with col3:
-        rate = cnt_567 / total_p if total_p else 0
-        gap = total_p / cnt_567 if cnt_567 else 0
-        st.error(f"**5、6、7等奖【同时并发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{rate:.2%}**\n\n平均频次: 约 **{gap:.1f}** 期/次")
-        # 🤖 AI 动态生成过滤建议
-    combo_stats = [("4、5等奖并发", cnt_45), ("5、6等奖并发", cnt_56), ("5、6、7等奖并发", cnt_567)]
-    best_combo = max(combo_stats, key=lambda x: x[1])
-
-    st.success(
-        f"**💡 后期筛选建议指标 (大乐透)**\n\n[数据洞察] 统计表明，在命中一等奖的历史期数中，**【{best_combo[0]}】** 形态出现次数最多（高达 **{best_combo[1]}** 次）。\n\n[实战策略] 建议在后续的缩水工具中，**优先锚定【{best_combo[0]}】作为核心过滤条件**，将其容错范围死锁在平均发生值附近！")
     st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
     min_comp = audit_df['总伴生奖项数'].min()
     cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
