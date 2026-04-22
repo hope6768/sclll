@@ -578,7 +578,7 @@ def render_mod_prize(df, is_ssq):
             st.warning(
                 f" 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
     
-        st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
+    st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
     min_comp = audit_df['总伴生奖项数'].min()
     cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
     max_comp = audit_df['总伴生奖项数'].max()
