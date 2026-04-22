@@ -596,6 +596,25 @@ def render_mod_prize(df, is_ssq):
             unsafe_allow_html=True)
         st_centered_df(hot_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
+        st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
+    min_comp = audit_df['总伴生奖项数'].min()
+    cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
+    max_comp = audit_df['总伴生奖项数'].max()
+    hot_df = audit_df[audit_df['总伴生奖项数'] == max_comp]
+
+    m1, m2 = st.columns(2)
+    with m1:
+        st.markdown(
+            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br>这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
+            unsafe_allow_html=True)
+        st_centered_df(cold_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
+                       hide_index=True)
+    with m2:
+        st.markdown(
+            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br>这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
+            unsafe_allow_html=True)
+        st_centered_df(hot_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
+                       hide_index=True)
 
     st.markdown("### 📋 六、 伴生区间波动明细 (全量数据)")
     st_centered_df(audit_df.iloc[::-1], use_container_width=True, hide_index=True)
