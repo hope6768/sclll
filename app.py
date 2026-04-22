@@ -441,55 +441,111 @@ def render_mod_prize(df, is_ssq):
             </div>
             """, unsafe_allow_html=True)
 
+   st.markdown("### ⚡ 四、复合伴生 / 并发专项统计 (一等奖命中前提)")
+
     # ==========================================
-    # 🌟 终极进化：自定义精确次数追踪雷达 (精算级)
+    # 基础固定统计：直接读取真实存在的 '伴生X等奖' 列
     # ==========================================
-    st.markdown("#### 🎯 自定义奖项【精确次数】追踪雷达")
+    if is_ssq:
+        c3, c4, c5, c6, cfy = audit_df['伴生3等奖'], audit_df['伴生4等奖'], audit_df['伴生5等奖'], audit_df['伴生6等奖'], audit_df['伴生福运奖']
+        cnt_345 = ((c3 > 0) & (c4 > 0) & (c5 > 0)).sum()
+        cnt_456 = ((c4 > 0) & (c5 > 0) & (c6 > 0)).sum()
+        cnt_456f = ((c4 > 0) & (c5 > 0) & (c6 > 0) & (cfy > 0)).sum()
+
+        col1, col2, col3 = st.columns(3)
+        with col1: st.info(f"**3,4,5等奖【同发】**\n\n共计出现: **{cnt_345}** 期\n\n全量占比: **{cnt_345/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_345 if cnt_345 else 0:.1f}** 期/次")
+        with col2: st.warning(f"**4,5,6等奖【同发】**\n\n共计出现: **{cnt_456}** 期\n\n全量占比: **{cnt_456/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456 if cnt_456 else 0:.1f}** 期/次")
+        with col3: st.error(f"**4,5,6及福运奖【同发】**\n\n共计出现: **{cnt_456f}** 期\n\n全量占比: **{cnt_456f/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_456f if cnt_456f else 0:.1f}** 期/次")
+        
+        st.success("**💡 后期筛选建议**\n\n[核心过滤区] 在命中一等奖框架下，密切关注上述最高频组合。若某组合占比极高，建议在容错大底中强制绑定该形态！")
     
-    # 架构师引擎：自动获取当前彩种的全部伴生奖项列（兼容双色球2~福运，大乐透3~7等）
+    else:
+        c4, c5, c6, c7 = audit_df['伴生4等奖'], audit_df['伴生5等奖'], audit_df['伴生6等奖'], audit_df[f'伴生{last_prize_name}']
+        cnt_45 = ((c4 > 0) & (c5 > 0)).sum()
+        cnt_56 = ((c5 > 0) & (c6 > 0)).sum()
+        cnt_567 = ((c5 > 0) & (c6 > 0) & (c7 > 0)).sum()
+
+        col1, col2, col3 = st.columns(3)
+        with col1: st.info(f"**4,5等奖【同发】**\n\n共计出现: **{cnt_45}** 期\n\n全量占比: **{cnt_45/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_45 if cnt_45 else 0:.1f}** 期/次")
+        with col2: st.warning(f"**5,6等奖【同发】**\n\n共计出现: **{cnt_56}** 期\n\n全量占比: **{cnt_56/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_56 if cnt_56 else 0:.1f}** 期/次")
+        with col3: st.error(f"**5,6,7等奖【同发】**\n\n共计出现: **{cnt_567}** 期\n\n全量占比: **{cnt_567/total_p if total_p else 0:.2%}**\n\n平均频次: 约 **{total_p/cnt_567 if cnt_567 else 0:.1f}** 期/次")
+
+        best_c = max([("4、5等奖并发", cnt_45), ("5、6等奖并发", cnt_56), ("5、6、7等奖并发", cnt_567)], key=lambda x: x[1])
+        st.success(f"**💡 后期筛选建议 (大乐透)**\n\n[数据洞察] 统计表明在命中一等奖期数中，**【{best_c[0]}】** 形态出现最多（**{best_c[1]}** 次）。\n\n[实战策略] 建议优先锚定该形态作为核心过滤条件！")
+
+
+    # ==========================================
+    # 🌟 模式一：自定义模糊同出组合追踪
+    # ==========================================
+    st.markdown("---")
+    st.markdown("#### 🎯 模式一：宽泛组合同出雷达 (只要发生即算)")
+    options_v1 = ['伴生3等奖', '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}'] if is_ssq else ['伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}']
+    
+    selected_prizes_v1 = st.multiselect("请选择需要追踪的奖项组合 (可多选):", options_v1, default=options_v1[:2], key="ms_v1")
+
+    if selected_prizes_v1:
+        mask_v1 = pd.Series([True] * total_p, index=audit_df.index)
+        for p in selected_prizes_v1:
+            mask_v1 = mask_v1 & (audit_df[p] > 0)
+        
+        match_cnt_v1 = mask_v1.sum()
+        match_rate_v1 = match_cnt_v1 / total_p if total_p else 0
+        match_gap_v1 = total_p / match_cnt_v1 if match_cnt_v1 else 0
+        clean_names_v1 = "+".join([p.replace('伴生', '') for p in selected_prizes_v1])
+        
+        st.markdown(f"""
+        <div style='background-color:rgba(0, 188, 212, 0.1); border-left:4px solid #00bcd4; padding:15px; border-radius:5px;'>
+            <h5 style='color:#00bcd4; margin-top:0;'>🔭 【{clean_names_v1}】 只要同时出现过的统计：</h5>
+            <ul style='font-size:1.05em; margin-bottom:0;'>
+                <li>命中期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v1}</b> 次</li>
+                <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v1:.2%}</b></li>
+                <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v1:.1f}</b> 期一次</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+    # ==========================================
+    # 🌟 模式二：自定义精确次数追踪雷达 (精算级)
+    # ==========================================
+    st.markdown("---")
+    st.markdown("#### 🎯 模式二：精确次数死锁雷达 (精算级)")
     available_prizes = [col for col in audit_df.columns if str(col).startswith('伴生')]
     
-    selected_prizes = st.multiselect("第一步：选择你需要【精确追踪】的奖项 (全量覆盖，可随意多选):", available_prizes)
+    selected_prizes_v2 = st.multiselect("第一步：选择需要【精确次数】死锁的奖项 (全量覆盖):", available_prizes, key="ms_v2")
 
-    if selected_prizes:
+    if selected_prizes_v2:
         st.markdown("<p style='font-size:0.95em; color:#bbb; margin-bottom: 5px;'>第二步：请输入这些奖项的<b>具体发生次数</b>：</p>", unsafe_allow_html=True)
-        
-        # 根据你的选择，动态生成横向排列的数字输入控制台
-        cols = st.columns(len(selected_prizes))
+        cols = st.columns(len(selected_prizes_v2))
         target_counts = {}
-        for i, p_col in enumerate(selected_prizes):
+        for i, p_col in enumerate(selected_prizes_v2):
             with cols[i]:
-                # 默认设为0，你可以手动输入或点击加减，最高支持 1000 次
-                target_counts[p_col] = st.number_input(f"{p_col.replace('伴生', '')} (次):", min_value=0, max_value=1000, value=0, step=1)
+                target_counts[p_col] = st.number_input(f"{p_col.replace('伴生', '')} (次):", min_value=0, max_value=1000, value=0, step=1, key=f"ni_{p_col}")
         
-        # 核心精算过滤：精确匹配你输入的绝对次数
-        mask = pd.Series([True] * total_p, index=audit_df.index)
+        mask_v2 = pd.Series([True] * total_p, index=audit_df.index)
         query_parts = []
         for p_col, target_val in target_counts.items():
-            mask = mask & (audit_df[p_col] == target_val)
+            mask_v2 = mask_v2 & (audit_df[p_col] == target_val)
             query_parts.append(f"{p_col.replace('伴生', '')}={target_val}次")
         
-        match_cnt = mask.sum()
-        match_rate = match_cnt / total_p if total_p else 0
-        match_gap = total_p / match_cnt if match_cnt else 0
+        match_cnt_v2 = mask_v2.sum()
+        match_rate_v2 = match_cnt_v2 / total_p if total_p else 0
+        match_gap_v2 = total_p / match_cnt_v2 if match_cnt_v2 else 0
         query_display = " + ".join(query_parts)
         
-        # 结论输出
-        if match_cnt > 0:
+        if match_cnt_v2 > 0:
             st.markdown(f"""
-            <div style='background-color:rgba(0, 188, 212, 0.1); border-left:4px solid #00bcd4; padding:15px; border-radius:5px; margin-top:15px;'>
-                <h5 style='color:#00bcd4; margin-top:0;'>🔬 精算组合 【{query_display}】 统计数据：</h5>
+            <div style='background-color:rgba(255, 152, 0, 0.1); border-left:4px solid #ff9800; padding:15px; border-radius:5px; margin-top:15px;'>
+                <h5 style='color:#ff9800; margin-top:0;'>🔬 精算组合 【{query_display}】 统计：</h5>
                 <ul style='font-size:1.05em; margin-bottom:0;'>
-                    <li>在命中一等奖的历史中，该精确组合发生的期数：<b style='color:white; font-size:1.2em;'>{match_cnt}</b> 次</li>
-                    <li>占全量历史期数比重：<b style='color:#00FF7F;'>{match_rate:.2%}</b></li>
-                    <li>平均发生频次：约 <b style='color:#ff4b4b;'>{match_gap:.1f}</b> 期出现一次</li>
+                    <li>精确匹配期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v2}</b> 次</li>
+                    <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v2:.2%}</b></li>
+                    <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v2:.1f}</b> 期一次</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.warning(f"⚠️ 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极度冷门或理论上不可能发生的形态。")
-    else:
-        st.info("💡 请在上方下拉框中选择您想要探查的奖项。选择后，可手动输入它们的【确切发生次数】进行全盘精准扫描。")
+            st.warning(f"⚠️ 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
     
     st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
     min_comp = audit_df['总伴生奖项数'].min()
