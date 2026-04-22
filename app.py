@@ -4,6 +4,7 @@ import numpy as np
 import os
 import itertools
 
+
 # ==========================================
 # ⚙️ 1. 全局配置与状态初始化
 # ==========================================
@@ -162,20 +163,20 @@ def render_mod_red_position(df, is_ssq):
                           "温号池": ",".join([f"{x:02d}" for x in pools[col]['warm']]),
                           "冷号池": ",".join([f"{x:02d}" for x in pools[col]['cold']])})
 
-    st.markdown("### 预警")
+    st.markdown("### 预警提示")
     alerts = []
     for col in r_cols:
         hit_series = df_feat[col].apply(lambda x: 1 if x in pools[col]['hot'] else 0)
         current_gap = (~hit_series.iloc[::-1].astype(bool)).cummin().sum()
         thresh = calculate_dynamic_threshold(hit_series, window=100)
         if current_gap >= thresh: alerts.append(
-            f"<li>🎯 <b>{col.replace('r', '红')}位热号冰封</b>：现已遗漏 <b style='color:#ff4b4b;'>{current_gap}</b> 期 (阈值:{thresh})！强烈建议重仓热号 [{r_summary[int(col[1:]) - 1]['热号池']}]！</li>")
+            f"<li>🎯 <b>{col.replace('r', '红')}位热号冰封</b>：现已遗漏 <b style='color:#ff4b4b;'>{current_gap}</b> 期 (阈值:{thresh})！建议重仓热号 [{r_summary[int(col[1:]) - 1]['热号池']}]！</li>")
 
     for i in range(1, red_n + 1):
         amp_series = (df_feat[f'r{i}_amp'] <= 2).astype(int)
         micro_amp_streak = amp_series.iloc[::-1].cummin().sum()
         if micro_amp_streak >= 5: alerts.append(
-            f"<li>🌊 <b>红{i}位纵向引力崩塌</b>：已连续 {micro_amp_streak} 期横盘！下期必发生活跃跳变！</li>")
+            f"<li>🌊 <b>红{i}位纵向引力崩塌</b>：已连续 {micro_amp_streak} 期横盘！下期将发生活跃跳变！</li>")
 
     for i in range(1, red_n):
         wide_streak = (df_feat[f'step_{i}'] >= 10).iloc[::-1].cummin().sum()
@@ -184,14 +185,14 @@ def render_mod_red_position(df, is_ssq):
 
     if alerts:
         st.markdown(
-            f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0;'>⚠️ 警报：大盘局部突破极限！</h4><ul>{''.join(alerts)}</ul></div>",
+            f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0;'>️ 警报：大盘局部突破极限！</h4><ul>{''.join(alerts)}</ul></div>",
             unsafe_allow_html=True)
     else:
         st.markdown(
-            "<div class='safe-card'><h4 style='color:#00FF7F; margin:0;'> 各位次冷热交替均在布林带常态范围内。</h4></div>",
+            "<div class='safe-card'><h4 style='color:#00FF7F; margin:0;'> 位次冷热交替均在常态范围。</h4></div>",
             unsafe_allow_html=True)
 
-    st.markdown("### 定胆矩阵")
+    st.markdown("### 一、定胆矩阵")
     bayesian_dict = {}
     for i in range(1, red_n): bayesian_dict[f"{i}_to_{i + 1}"] = df_feat.groupby(f'r{i}')[
         f'r{i + 1}'].value_counts().reset_index(name='count')
@@ -199,7 +200,7 @@ def render_mod_red_position(df, is_ssq):
     c_b1, c_b2 = st.columns([1, 2])
     with c_b1:
         st.markdown("<div class='stat-card'>", unsafe_allow_html=True)
-        sel_pos = st.selectbox("选择已知锚点位置", [f"红{i}位推导红{i + 1}位" for i in range(1, red_n)])
+        sel_pos = st.selectbox("选择推导位置", [f"红{i}位推导红{i + 1}位" for i in range(1, red_n)])
         pos_idx = int(sel_pos[1])
         avail_nums = sorted(df_feat[f'r{pos_idx}'].unique())
         last_num = df_feat[f'r{pos_idx}'].iloc[-1]
@@ -213,10 +214,10 @@ def render_mod_red_position(df, is_ssq):
             res_html = "".join([
                                    f"<div style='display:inline-block; text-align:center; margin-right:20px;'><span style='display:block; font-size:1.5em; font-weight:bold; color:#ff4b4b;'>{int(r[f'r{pos_idx + 1}']):02d}</span><span style='color:#bbb;'>跟出 {int(r['count'])} 次</span></div>"
                                    for _, r in results.iterrows()])
-            st.markdown(f"<div class='bayesian-card'><h4 style='color:#8a2be2;'>🧠 AI 贝叶斯推演</h4>{res_html}</div>",
+            st.markdown(f"<div class='bayesian-card'><h4 style='color:#8a2be2;'> 推导结果</h4>{res_html}</div>",
                         unsafe_allow_html=True)
 
-    st.markdown("### 🔍 二、 逐位深度拆解与落点追踪")
+    st.markdown("### 二、位置拆解")
     tabs = st.tabs([f"红{i + 1}位详情" for i in range(red_n)])
     for i, tab in enumerate(tabs):
         with tab:
@@ -233,11 +234,11 @@ def render_mod_red_position(df, is_ssq):
                 f_df['占比'] = (f_df['发生次数'] / total_p).map('{:.2%}'.format)
                 st_centered_df(f_df.sort_values("号码"), use_container_width=True, hide_index=True)
             with R:
-                st.success(f"🔥 热号池\n\n{r_summary[i]['热号池']}");
-                st.warning(f"⛅ 温号池\n\n{r_summary[i]['温号池']}");
-                st.error(f"❄️ 冷号池\n\n{r_summary[i]['冷号池']}")
+                st.success(f" 热号池\n\n{r_summary[i]['热号池']}");
+                st.warning(f" 温号池\n\n{r_summary[i]['温号池']}");
+                st.error(f"️ 冷号池\n\n{r_summary[i]['冷号池']}")
 
-    st.markdown("### 🎯 三、 红球全量存活概率分布")
+    st.markdown("###  三、红球历史出号统计")
     red_full = []
     for n in range(1, red_max + 1):
         d = {"号码": f"{n:02d}"};
@@ -248,14 +249,14 @@ def render_mod_red_position(df, is_ssq):
         red_full.append(d)
     st_centered_df(pd.DataFrame(red_full), use_container_width=True, hide_index=True)
 
-    st.markdown("### 📅 四、 最近 20 期走势明细")
-    recent_r = df_feat.tail(20).copy();
+    st.markdown("###  四、最近 50 期明细")
+    recent_r = df_feat.tail(50).copy();
     disp_cols = ['期号']
     for i in range(1, red_n + 1):
         col = f'r{i}'
         recent_r[f'红{i}位'] = recent_r.apply(lambda row: f"{int(row[col]):02d}(" + (
             "热" if row[col] in pools[col]['hot'] else (
-                "冷" if row[col] in pools[col]['cold'] else "温")) + f") |V|{int(row[f'{col}_amp'])}", axis=1)
+                "冷" if row[col] in pools[col]['cold'] else "温")) + f") |振幅|{int(row[f'{col}_amp'])}", axis=1)
         disp_cols.append(f'红{i}位')
         if i < red_n: recent_r[f'↔间距{i}'] = recent_r[f'step_{i}']; disp_cols.append(f'↔间距{i}')
     st_centered_df(recent_r[disp_cols].iloc[::-1], use_container_width=True, hide_index=True)
@@ -354,32 +355,32 @@ def render_mod_prize(df, is_ssq):
 
     dynamic_thresh = calculate_dynamic_threshold(is_top1_hit)
 
-    st.markdown("### 🚨 零、 架构师 AI 伴生基因预警系统")
+    st.markdown("### 预警提示")
     if current_gap >= dynamic_thresh:
         st.markdown(f"""
         <div class='alert-card'>
-            <h3 style='color: #ff4b4b; margin-top:0;'>⚠️ 警报：核心伴生形态极度空窗，爆发临界点已触发！</h3>
-            <p style='font-size:1.1em;'>历史发生率最高的绝对核心形态 <b>[{top_combo}]</b>，目前已经连续遗漏了 <b>{current_gap}</b> 期！</p>
-            <p>该形态在历史上通常每隔 <b>{mode_gap}</b> 期回归。而系统最新计算的<b>动态极限波动阈值</b>为 <b>{dynamic_thresh}</b> 期。当前大盘已彻底击穿布林带上限，进入概率学上的<b>极高压报复性回补区</b>！</p>
+            <h3 style='color: #ff4b4b; margin-top:0;'>️ 警报：命中一等奖的其他奖项遗漏超出均值</h3>
+            <p style='font-size:1.1em;'>历史数据中发生形态 <b>[{top_combo}]</b>，目前已遗漏了 <b>{current_gap}</b> 期！</p>
+            <p>该形态在历史上每隔 <b>{mode_gap}</b> 期回归。而系统最新计算的<b>动态波动值</b>为 <b>{dynamic_thresh}</b> 期。当前大盘已上限，进入概率学上的<b>报复性回补</b>！</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#f9d71c;'>🎯 本期动态智能容错过滤建议：</h4>
-            <p>强烈建议在这一期的缩水软件中，<b>放弃使用模糊的置信区间</b>。直接将软件的伴生奖项过滤条件<b>精确死锁为</b>：<br />
+            <h4 style='color:#f9d71c;'> 本期过滤建议：</h4>
+            <p>建议在这一期的奖项命中次数，<b>奖项波动区间</b>。直接将过滤条件<b>锁定该范围正负不超过5</b>：<br />
             <span style='font-size:1.2em; font-weight:bold; color:white;'>{top_combo}</span><br />
-            以博取极大概率的均值回归收益！</p>
+            以博取极大概率的收益！</p>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div class='safe-card'>
-            <h3 style='color: #00FF7F; margin-top:0;'>✅ 提示：核心伴生基因目前处于安全波动常态区</h3>
-            <p style='font-size:1.1em;'>历史最强形态 <b>[{top_combo}]</b> 当前遗漏 <b>{current_gap}</b> 期，尚未击穿系统计算的动态极限波动阈值（<b>{dynamic_thresh}</b> 期）。</p>
+            <h3 style='color: #00FF7F; margin-top:0;'> 提示：命中一等奖的其他奖项处于正常波动范围</h3>
+            <p style='font-size:1.1em;'>历史数据中发生形态 <b>[{top_combo}]</b> 当前遗漏 <b>{current_gap}</b> 期，符合动态波动（<b>{dynamic_thresh}</b> 期）。</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#00FF7F;'>💡 AI 智能常态防守推荐：</h4>
-            <p>本期<b>不建议</b>死守某一个固定的伴生形态，请直接向下滚动，参考<b>【模块三：核心置信区间】</b>给出的[X ~ Y]宽泛范围，进行常态化容错过滤，以防误杀大奖组合。</p>
+            <h4 style='color:#00FF7F;'> 本期防守推荐：</h4>
+            <p>本期<b>不建议</b>死守某一个固定的奖项形态，请参考<b>【三：各奖项区间】</b>给出的[X ~ Y]宽泛范围，进行常态化筛选。</p>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("### 📊 一、 奖项伴生波动区间 (一等奖命中背景下)")
+    st.markdown("###  一、各奖项区间 (一等奖命中背景下)")
 
     def render_stat_card(title, series):
         non_zero = (series > 0).sum()
@@ -387,9 +388,9 @@ def render_mod_prize(df, is_ssq):
         st.markdown(f"""
         <div class='stat-card'>
             <h5 style='color: #4da6ff; margin-bottom:10px;'>{title}</h5>
-            <p style='margin-bottom:6px;'>🔹 绝对次数区间: <b>[{series.min()} - {series.max()}]</b></p>
-            <p style='margin-bottom:6px;'>🔹 伴生平均值: <b>{series.mean():.4f}</b></p>
-            <p style='margin-bottom:0;'>🔹 历史全量伴生率: <b>{rate:.2%}</b> (发生期数: {non_zero})</p>
+            <p style='margin-bottom:6px;'>🔹 历史次数区间: <b>[{series.min()} - {series.max()}]</b></p>
+            <p style='margin-bottom:6px;'>🔹 发生平均值: <b>{series.mean():.4f}</b></p>
+            <p style='margin-bottom:0;'>🔹 历史全量发生率: <b>{rate:.2%}</b> (发生期数: {non_zero})</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -419,13 +420,13 @@ def render_mod_prize(df, is_ssq):
         with c4:
             render_stat_card(f"{last_prize_name} (C7)", audit_df[f'伴生{last_prize_name}'])
 
-    st.markdown("### 🎯 二、 核心基因：伴生组合历史频次排行 (Top 100)")
+    st.markdown("### 二、各奖项组合统计排行")
     combo_stats = combo_counts.reset_index()
-    combo_stats.columns = ['一等奖带出的精准伴生组合', '发生期数']
+    combo_stats.columns = ['命中一等奖的各奖项次数组合', '发生期数']
     combo_stats['全量概率占比'] = (combo_stats['发生期数'] / total_p).map('{:.2%}'.format)
     st_centered_df(combo_stats.head(100), use_container_width=True, hide_index=True)
 
-    st.markdown("### 🛡️ 三、 容错过滤：各项伴生奖的核心置信区间 (覆盖常态情况)")
+    st.markdown("### 三、各奖项区间")
     prize_cols = ['伴生3等奖', '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}']
     cols = st.columns(len(prize_cols))
     for i, p_col in enumerate(prize_cols):
@@ -521,15 +522,15 @@ def render_mod_prize(df, is_ssq):
         clean_names_v1 = "+".join([p.replace('伴生', '') for p in selected_prizes_v1])
 
         st.markdown(f"""
-            <div style='background-color:rgba(0, 188, 212, 0.1); border-left:4px solid #00bcd4; padding:15px; border-radius:5px;'>
-                <h5 style='color:#00bcd4; margin-top:0;'> 【{clean_names_v1}】 同时出现统计：</h5>
-                <ul style='font-size:1.05em; margin-bottom:0;'>
-                    <li>命中期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v1}</b> 次</li>
-                    <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v1:.2%}</b></li>
-                    <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v1:.1f}</b> 期一次</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+                <div style='background-color:rgba(0, 188, 212, 0.1); border-left:4px solid #00bcd4; padding:15px; border-radius:5px;'>
+                    <h5 style='color:#00bcd4; margin-top:0;'> 【{clean_names_v1}】 同时出现统计：</h5>
+                    <ul style='font-size:1.05em; margin-bottom:0;'>
+                        <li>命中期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v1}</b> 次</li>
+                        <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v1:.2%}</b></li>
+                        <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v1:.1f}</b> 期一次</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
 
     # ==========================================
     # 🌟 第三部分：模式二 - 自定义精确次数追踪雷达 (精算级)
@@ -565,19 +566,18 @@ def render_mod_prize(df, is_ssq):
 
         if match_cnt_v2 > 0:
             st.markdown(f"""
-                <div style='background-color:rgba(255, 152, 0, 0.1); border-left:4px solid #ff9800; padding:15px; border-radius:5px; margin-top:15px;'>
-                    <h5 style='color:#ff9800; margin-top:0;'> 精算组合 【{query_display}】 统计：</h5>
-                    <ul style='font-size:1.05em; margin-bottom:0;'>
-                        <li>匹配期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v2}</b> 次</li>
-                        <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v2:.2%}</b></li>
-                        <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v2:.1f}</b> 期一次</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div style='background-color:rgba(255, 152, 0, 0.1); border-left:4px solid #ff9800; padding:15px; border-radius:5px; margin-top:15px;'>
+                        <h5 style='color:#ff9800; margin-top:0;'> 精算组合 【{query_display}】 统计：</h5>
+                        <ul style='font-size:1.05em; margin-bottom:0;'>
+                            <li>匹配期数：<b style='color:white; font-size:1.2em;'>{match_cnt_v2}</b> 次</li>
+                            <li>全量比重：<b style='color:#00FF7F;'>{match_rate_v2:.2%}</b></li>
+                            <li>平均缺口：约 <b style='color:#ff4b4b;'>{match_gap_v2:.1f}</b> 期一次</li>
+                        </ul>
+                    </div>
+                    """, unsafe_allow_html=True)
         else:
             st.warning(
                 f" 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
-    
     st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
     min_comp = audit_df['总伴生奖项数'].min()
     cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
@@ -587,13 +587,13 @@ def render_mod_prize(df, is_ssq):
     m1, m2 = st.columns(2)
     with m1:
         st.markdown(
-            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br>这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
+            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br />这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
             unsafe_allow_html=True)
         st_centered_df(cold_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
     with m2:
         st.markdown(
-            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br>这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
+            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br />这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
             unsafe_allow_html=True)
         st_centered_df(hot_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
