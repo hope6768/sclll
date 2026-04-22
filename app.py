@@ -577,25 +577,7 @@ def render_mod_prize(df, is_ssq):
         else:
             st.warning(
                 f" 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
-    st.markdown("###  五、历史各奖项累积命中冷热统计")
-    min_comp = audit_df['总伴生奖项数'].min()
-    cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
-    max_comp = audit_df['总伴生奖项数'].max()
-    hot_df = audit_df[audit_df['总伴生奖项数'] == max_comp]
-
-    m1, m2 = st.columns(2)
-    with m1:
-        st.markdown(
-            f"<div class='warn-card'><b>️ 冷门期 (奖项累积最少：{min_comp}次)</b><br />这些奖项次数虽然中了一等奖，但几乎没有带出其他下级奖。</div>",
-            unsafe_allow_html=True)
-        st_centered_df(cold_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
-                       hide_index=True)
-    with m2:
-        st.markdown(
-            f"<div class='warn-card-green'><b> 狂热期 (奖项累积最多：{max_comp}次)</b><br />这些奖项次数的号码特征极具普遍性，带出了海量的下级奖。</div>",
-            unsafe_allow_html=True)
-        st_centered_df(hot_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
-                       hide_index=True)
+    
         st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
     min_comp = audit_df['总伴生奖项数'].min()
     cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
