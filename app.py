@@ -825,7 +825,7 @@ def render_mod_012(df, is_ssq):
     st.bar_chart(trend, color=["#ff4b4b", "#1c83e1", "#f9d71c"])
 
     st.markdown("### 📋 三、 底层明细")
-    display_cols = ['期号'] + r_cols + ['012形态', '0路', '1路', '2路']
+    display_cols = ['期号'] + 红_cols + ['012形态', '0路', '1路', '2路']
     st_centered_df(result_df[display_cols].iloc[::-1], use_container_width=True, hide_index=True, height=400)
 
 
