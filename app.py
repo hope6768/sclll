@@ -1383,7 +1383,7 @@ def render_seq_shared(df, is_ssq, title, mode, recs):
         render_metric_card_shared(f"🟤 交叉{name_t}", *pass_args('step_4'), "#ff7f50")
 
     st.markdown(f"### 📈 二、 最近 50 期【四维核心 2{name_t}】阵营博弈走势图")
-    st.line_chart(seq_df.tail(50).set_index('期号')[['步长_1_2连', '步长_2_odd_2连', '步长_2_even_2连', '步长_4_2连']],
+    st.line_chart(seq_df.tail(50).set_index('期号')[['step_1_2连', 'step_2_odd_2连', 'step_2_even_2连', 'step_4_2连']],
                   color=["#4da6ff", "#f9d71c", "#e6b800", "#ff7f50"])
 
     st.markdown("### 📋 三、 历史数据底层明细 (支持检视追踪详情)")
