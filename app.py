@@ -501,7 +501,7 @@ def render_mod_prize(df, is_ssq):
     # 🌟 第二部分：模式一 - 自定义模糊同出组合追踪
     # ==========================================
     st.markdown("---")
-    st.markdown("#### 模式一：筛查奖项组合同出范围 (只要发生即算)")
+    st.markdown("#### 模式一：筛查各奖项组合同出范围 (只要发生即算)")
     options_v1 = ['伴生3等奖', '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}'] if is_ssq else [
         '伴生4等奖', '伴生5等奖', '伴生6等奖', f'伴生{last_prize_name}']
 
@@ -578,7 +578,7 @@ def render_mod_prize(df, is_ssq):
         else:
             st.warning(
                 f" 在历史库中，尚未出现过 **【{query_display}】** 这种精准次数的组合！这属于极端盲区，排雷时请避开！")
-    st.markdown("### ⚠️ 五、 极值勘探：历史上的奇异伴生期数")
+    st.markdown("### 五、冷热奖项累积命中次数")
     min_comp = audit_df['总伴生奖项数'].min()
     cold_df = audit_df[audit_df['总伴生奖项数'] == min_comp]
     max_comp = audit_df['总伴生奖项数'].max()
@@ -587,23 +587,23 @@ def render_mod_prize(df, is_ssq):
     m1, m2 = st.columns(2)
     with m1:
         st.markdown(
-            f"<div class='warn-card'><b>❄️ 极度冷门期 (总伴生最少：{min_comp}次)</b><br />这些期数虽然中了一等奖，但几乎没有带出其他低等奖。</div>",
+            f"<div class='warn-card'><b>️ 冷门组合 (该组合奖项：{min_comp}次)</b><br />这些组合奖项虽然中了一等奖，没有带出其他下级奖。</div>",
             unsafe_allow_html=True)
-        st_centered_df(cold_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
+        st_centered_df(cold_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
     with m2:
         st.markdown(
-            f"<div class='warn-card-green'><b>🔥 极度狂热期 (总伴生最多：{max_comp}次)</b><br />这些期数的号码特征极具普适性，带出了海量的下级奖项。</div>",
+            f"<div class='warn-card-green'><b> 狂热组合 (该组合奖项：{max_comp}次)</b><br />这些组合奖项的号码具普遍性，带出了更多的下级奖项。</div>",
             unsafe_allow_html=True)
-        st_centered_df(hot_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
+        st_centered_df(hot_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
 
-    st.markdown("### 📋 六、 伴生区间波动明细 (全量数据)")
+    st.markdown("### 六、各奖项区间波动明细 (历史全量数据)")
     st_centered_df(audit_df.iloc[::-1], use_container_width=True, hide_index=True)
 
-    st.markdown("### 📑 七、 各奖项区间波动详情 (对齐 TXT 报告格式)")
+    st.markdown("### 七、各奖项区间波动汇总分析 (报告格式)")
     report_lines = []
-    report_lines.append(f"========== {lottery_choice}历史奖项波动与伴生规律深度审计报告 ==========")
+    report_lines.append(f"========== {lottery_choice}历史奖项波动与伴生规律审计报告 ==========")
     report_lines.append(f"分析样本：{total_p} 期")
     report_lines.append("-" * 60)
 
@@ -629,9 +629,9 @@ def render_mod_ac(df, is_ssq):
     r_cols = [f'r{i + 1}' for i in range(6 if is_ssq else 5)]
 
     if is_ssq:
-        st.success("📌 **当前引擎 (双色球)**：提取 6 个红球两两作差去重，扣减基数【5】。理论范围：0 ~ 10。")
+        st.success(" **当前引擎 (双色球)**：提取 6 个红球两两作差去重，扣减基数【5】。理论范围：0 ~ 10。")
     else:
-        st.info("📌 **当前引擎 (大乐透)**：提取 5 个红球两两作差去重，扣减基数【4】。理论范围：0 ~ 6。")
+        st.info(" **当前引擎 (大乐透)**：提取 5 个红球两两作差去重，扣减基数【4】。理论范围：0 ~ 6。")
 
     def calc_ac(nums):
         v = [int(x) for x in nums if pd.notna(x)]
@@ -655,16 +655,16 @@ def render_mod_ac(df, is_ssq):
 
     dyn_thresh = calculate_dynamic_threshold(is_hit)
 
-    st.markdown("### 🚨 零、 架构师 AI 核心 AC 值临界预警系统")
+    st.markdown("### AC 值临界预警提示")
     if curr_gap >= dyn_thresh:
         st.markdown(f"""
         <div class='alert-card'>
-            <h3 style='color: #ff4b4b; margin-top:0;'>⚠️ 警报：核心 AC 值爆发节点已触发！</h3>
-            <p style='font-size:1.1em;'>历史最常开出的绝对主导 AC 值 <b>[{top_ac}]</b>，目前已经连续遗漏了 <b>{curr_gap}</b> 期！</p>
-            <p>经系统测算，该 AC 值在历史上通常每隔 <b>{mode_gap_zero}</b> 期就会进行一次均值回归。当前已进入极限回补区！</p>
+            <h3 style='color: #ff4b4b; margin-top:0;'>️ 警报： AC 值爆发节点已触发！</h3>
+            <p style='font-size:1.1em;'>历史最常开出的主导 AC 值 <b>[{top_ac}]</b>，目前已经连续遗漏了 <b>{curr_gap}</b> 期！</p>
+            <p>经系统测算，该 AC 值在历史上通常每隔 <b>{mode_gap_zero}</b> 期就会进行一次均值回归。当前已进入回补区！</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#f9d71c;'>🎯 本期动态容错过滤建议：</h4>
-            <p>本期在配置过滤大底时，<b>请放弃使用区间容错</b>。强烈建议直接将软件的 AC 值条件<b>单点锁定为</b>：<br />
+            <h4 style='color:#f9d71c;'> 本期过滤建议：</h4>
+            <p>本期在配置过滤时，<b>请放弃使用区间范围</b>。建议直接将 AC 值条件<b>锁定为</b>：<br />
             <span style='font-size:1.2em; font-weight:bold; color:white;'>AC值 = {top_ac}</span><br />
             以获取极致的缩水效果！</p>
         </div>
@@ -672,16 +672,16 @@ def render_mod_ac(df, is_ssq):
     else:
         st.markdown(f"""
         <div class='safe-card'>
-            <h3 style='color: #00FF7F; margin-top:0;'>✅ 提示：核心 AC 值目前处于安全震荡区</h3>
-            <p style='font-size:1.1em;'>历史最强 AC 值 <b>[{top_ac}]</b> 当前遗漏 <b>{curr_gap}</b> 期，尚未达到历史最易爆发的节点（<b>{mode_gap_zero}</b> 期）。</p>
+            <h3 style='color: #00FF7F; margin-top:0;'> 提示： AC 值目前处于正常范围</h3>
+            <p style='font-size:1.1em;'>历史最热 AC 值 <b>[{top_ac}]</b> 当前遗漏 <b>{curr_gap}</b> 期，尚未达到历史最易爆发的节点（<b>{mode_gap_zero}</b> 期）。</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#00FF7F;'>💡 常规防守推荐：</h4>
-            <p>本期 AC 走势可能出现横向偏移。建议在过滤条件中设置一定的容错区间，可将过滤条件放宽至：<br />
-            <b>AC值 = {top_ac} 或 AC值 = {top_ac_2_zero}</b>，以防爆冷误杀大奖。</p>
+            <h4 style='color:#00FF7F;'> 常规防守推荐：</h4>
+            <p>本期 AC 走势可能出现横向偏移（5—6）。建议在过滤条件中设置一定的区间，可将过滤条件放宽至：<br />
+            <b>AC值 = {top_ac} 或 AC值 = {top_ac_2_zero}</b>，以防爆冷。</p>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("### 📊 一、 AC 值历史频次与动态遗漏")
+    st.markdown("### 一、AC 值历史频次与遗漏")
     mode_ac = int(result_df['AC值'].mode()[0])
     avg_ac = result_df['AC值'].mean()
     max_ac = int(result_df['AC值'].max())
@@ -690,7 +690,7 @@ def render_mod_ac(df, is_ssq):
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"<div class='stat-card'>历史最热 AC 值<br /><h2 style='color:#ff4b4b;margin:0;'>{mode_ac}</h2></div>",
                 unsafe_allow_html=True)
-    c2.markdown(f"<div class='stat-card'>全量平均 AC 值<br /><h2 style='color:#f9d71c;margin:0;'>{avg_ac:.2f}</h2></div>",
+    c2.markdown(f"<div class='stat-card'>平均 AC 值<br /><h2 style='color:#f9d71c;margin:0;'>{avg_ac:.2f}</h2></div>",
                 unsafe_allow_html=True)
     c3.markdown(f"<div class='stat-card'>最大 AC 值<br /><h2 style='color:#1c83e1;margin:0;'>{max_ac}</h2></div>",
                 unsafe_allow_html=True)
@@ -701,24 +701,24 @@ def render_mod_ac(df, is_ssq):
     ac_stats.columns = ['特定 AC 值', '历史发生期数']
     ac_stats['全量占比'] = (ac_stats['历史发生期数'] / total_p).map('{:.2%}'.format)
     last_idx = result_df.reset_index().groupby('AC值')['index'].max()
-    ac_stats['⏳ 当前遗漏 (期)'] = ac_stats['特定 AC 值'].map(lambda x: len(result_df) - 1 - last_idx.get(x, 0))
+    ac_stats[' 当前遗漏 (期)'] = ac_stats['特定 AC 值'].map(lambda x: len(result_df) - 1 - last_idx.get(x, 0))
 
     ac_stats = ac_stats.sort_values(by='历史发生期数', ascending=False)
 
     L1, R1 = st.columns([2, 1])
     with L1:
-        st.write("**(1) AC 值命中频次与遗漏排查表**")
+        st.write("** AC 值命中频次与遗漏排查表**")
         st_centered_df(ac_stats, use_container_width=True, hide_index=True)
     with R1:
-        st.write("**(2) AC 值历史分布直方图**")
+        st.write("** AC 值历史分布图**")
         st.bar_chart(result_df['AC值'].value_counts().sort_index(), color="#ff4b4b")
 
         top1_ac = ac_stats.iloc[0]['特定 AC 值']
         top2_ac = ac_stats.iloc[1]['特定 AC 值'] if len(ac_stats) > 1 else None
         st.success(
-            f"**💡 AC 过滤锚点：**\n\n数据表明，**AC 值为 {top1_ac} 与 {top2_ac}** 涵盖了核心中奖特征区间。配置沙盒时，强烈建议将 AC 容错范围锁定在此范围内。")
+            f"** AC 过滤建议：**\n\n数据表明，**AC 值为 {top1_ac} 与 {top2_ac}** 涵盖了核心中奖特征。建议将 AC 容错范围锁定在此范围内。")
 
-    st.markdown("### 📈 二、 AC 振幅波动与近期波形走势")
+    st.markdown("###  二、 AC 振幅波动与近期波形走势")
     avg_amp = result_df['AC振幅'].mean()
     latest_amp = result_df['AC振幅'].iloc[-1]
 
@@ -729,15 +729,15 @@ def render_mod_ac(df, is_ssq):
 
     L2, R2 = st.columns([1, 2])
     with L2:
-        st.write("**(1) AC 振幅频次排列**")
+        st.write("** AC 振幅频次排列**")
         st.info(f"历史平均振幅：**{avg_amp:.2f}**\n\n最新期 AC 振幅：**{latest_amp}**")
         st_centered_df(amp_stats, use_container_width=True, hide_index=True)
     with R2:
-        st.write("**(2) 最近 50 期 AC值 与 振幅 双重走势波形图**")
+        st.write("** 最近 50 期 AC值 与 振幅 双重走势波形图**")
         trend_df = result_df.tail(50).set_index('期号')[['AC值', 'AC振幅']]
         st.line_chart(trend_df, color=["#f9d71c", "#1c83e1"])
 
-    st.markdown("### 📋 三、 历史逐期数据明细 (倒序检视)")
+    st.markdown("### 三、 全量历史逐期数据明细表")
     st_centered_df(result_df.iloc[::-1], use_container_width=True, hide_index=True, height=400)
 
 
@@ -748,15 +748,15 @@ def render_mod_012(df, is_ssq):
 
     if is_ssq:
         st.success(
-            f"📌 **当前引擎 (双色球)**：已成功读取最新 **{total_p}** 期数据。红球 6 个，形态比值加和锁定为 **6** (例: 2:2:2)。")
+            f" **当前引擎 (双色球)**：已成功读取最新 **{total_p}** 期数据。红球 6 个，形态比值为 **6** (例: 2:2:2)。")
         with st.expander("📄 点击查看【双色球】012路 详细使用说明", expanded=False):
             st.markdown("""
-            **🎯 012路基础映射：**
+            ** 012路数字：**
             * **1路：** 1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31
             * **2路：** 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32
             * **0路：** 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33
 
-            **🔢 012路个数排列值 (形态比值：0路:1路:2路)：**
+            ** 012路个数排列值 (形态比值：0路:1路:2路)：**
             * **0：** 6零 (600) &nbsp;|&nbsp; **1：** 5零1一 (510) &nbsp;|&nbsp; **2：** 5零1二 (501) &nbsp;|&nbsp; **3：** 4零2一 (420) &nbsp;|&nbsp; **4：** 4零1一1二 (411)
             * **5：** 4零2二 (402) &nbsp;|&nbsp; **6：** 3零3一 (330) &nbsp;|&nbsp; **7：** 3零2一1二 (321) &nbsp;|&nbsp; **8：** 3零1一2二 (312) &nbsp;|&nbsp; **9：** 3零3二 (303)
             * **10：** 2零4一 (240) &nbsp;|&nbsp; **11：** 2零3一1二 (231) &nbsp;|&nbsp; **12：** 2零2一2二 (222) &nbsp;|&nbsp; **13：** 2零1一3二 (213) &nbsp;|&nbsp; **14：** 2零4二 (204)
@@ -766,15 +766,15 @@ def render_mod_012(df, is_ssq):
             """)
     else:
         st.info(
-            f"📌 **当前引擎 (大乐透)**：已成功读取最新 **{total_p}** 期数据。红球 5 个，形态比值加和锁定为 **5** (例: 1:2:2)。")
-        with st.expander("📄 点击查看【大乐透】012路 详细使用说明", expanded=False):
+            f" **当前引擎 (大乐透)**：已成功读取最新 **{total_p}** 期数据。红球 5 个，形态比值为 **5** (例: 1:2:2)。")
+        with st.expander(" 点击查看【大乐透】012路 详细使用说明", expanded=False):
             st.markdown("""
-            **🎯 012路基础映射：**
+            ** 012路数字：**
             * **1路：** 1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34
             * **2路：** 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35
             * **0路：** 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33
 
-            **🔢 012路个数排列值 (形态比值：0路:1路:2路)：**
+            ** 012路个数排列值 (形态比值：0路:1路:2路)：**
             * **0：** 5零 (500) &nbsp;|&nbsp; **1：** 4零1一 (410) &nbsp;|&nbsp; **2：** 4零1二 (401) &nbsp;|&nbsp; **3：** 3零2一 (320) &nbsp;|&nbsp; **4：** 3零1一1二 (311)
             * **5：** 3零2二 (302) &nbsp;|&nbsp; **6：** 2零3一 (230) &nbsp;|&nbsp; **7：** 2零2一1二 (221) &nbsp;|&nbsp; **8：** 2零1一2二 (212) &nbsp;|&nbsp; **9：** 2零3二 (203)
             * **10：** 1零4一 (140) &nbsp;|&nbsp; **11：** 1零3一1二 (131) &nbsp;|&nbsp; **12：** 1零2一2二 (122) &nbsp;|&nbsp; **13：** 1零1一3二 (113) &nbsp;|&nbsp; **14：** 1零4二 (104)
@@ -795,19 +795,19 @@ def render_mod_012(df, is_ssq):
     curr_gap = (~is_top1_hit.iloc[::-1].astype(bool)).cummin().sum()
     dyn_thresh = calculate_dynamic_threshold(is_top1_hit)
 
-    st.markdown("### 🚨 零、 架构师 AI 核心 012路 临界预警")
+    st.markdown("### 012路 临界预警提示")
     if curr_gap >= dyn_thresh:
         st.markdown(f"""
         <div class='alert-card'>
-            <h3 style='color: #ff4b4b; margin-top:0;'>⚠️ 012路骨架极限回补触发！</h3>
-            <p>绝对主导形态 <b>[{top_1_ratio}]</b> 遗漏 {curr_gap} 期，突破极限！放弃包围打法，直接单防锁定！</p>
+            <h3 style='color: #ff4b4b; margin-top:0;'>️ 012路遗漏回补触发！</h3>
+            <p>历史主导形态 <b>[{top_1_ratio}]</b> 遗漏 {curr_gap} 期，突破极限，直接单防锁定！</p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown(f"<div class='safe-card'><h3>✅ 012路骨架分布健康</h3><p>常规防守即可，勿偏态杀号。</p></div>",
+        st.markdown(f"<div class='safe-card'><h3> 012路分布健康</h3><p>常规防守即可。</p></div>",
                     unsafe_allow_html=True)
 
-    st.markdown("### 📊 一、 形态历史频次与遗漏追踪")
+    st.markdown("### 一、 形态历史频次与遗漏")
     stats = result_df['012形态'].value_counts().reset_index()
     stats.columns = ['形态', '期数'];
     stats['占比'] = (stats['期数'] / len(df)).map('{:.2%}'.format)
@@ -818,13 +818,13 @@ def render_mod_012(df, is_ssq):
     with c_l:
         st_centered_df(stats.sort_values('期数', ascending=False), use_container_width=True, hide_index=True)
     with c_r:
-        st.info(f"**🔥 绝对主导形态**\n\n数据表明，前两名形态涵盖了核心中奖区，建议容错锁定。")
+        st.info(f"** 主导形态**\n\n数据表明，前两名形态涵盖了核心中奖区，建议范围锁定。")
 
-    st.markdown("### 📈 二、 最近 50 期 012路 堆叠走势")
+    st.markdown("### 二、 最近 50 期 012路 堆叠走势")
     trend = result_df.tail(50).set_index('期号')[['0路', '1路', '2路']]
     st.bar_chart(trend, color=["#ff4b4b", "#1c83e1", "#f9d71c"])
 
-    st.markdown("### 📋 三、 底层明细")
+    st.markdown("### 三、 底层明细")
     display_cols = ['期号'] + r_cols + ['012形态', '0路', '1路', '2路']
     st_centered_df(result_df[display_cols].iloc[::-1], use_container_width=True, hide_index=True, height=400)
 
@@ -857,29 +857,29 @@ def render_mod_repeat(df, is_ssq):
     last_nums = [int(df.iloc[-1][c]) for c in r_cols]
     best_pick = sorted([(n, rep_freq[n]) for n in last_nums], key=lambda x: x[1], reverse=True)[0]
 
-    st.markdown("### 🚨 零、 架构师 AI 临界预警系统")
+    st.markdown("### 预警提示")
     if curr_gap >= dyn_thresh:
         st.markdown(f"""
         <div class='alert-card'>
-            <h3 style='color: #ff4b4b; margin-top:0;'>⚠️ 警报：重号爆发临界点触发！</h3>
-            <p style='font-size:1.1em;'>重号已断档 {curr_gap} 期！本期极大概率直落。上期号码中 <b>[{best_pick[0]:02d}]</b> 连庄基因最强！</p>
+            <h3 style='color: #ff4b4b; margin-top:0;'>️ 警报：重号触发临界点！</h3>
+            <p style='font-size:1.1em;'>重号已断 {curr_gap} 期！本期大概率直落。上期号码中 <b>[{best_pick[0]:02d}]</b> 连庄最强！</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#f9d71c;'>🎯 本期动态定胆推荐：</h4>
+            <h4 style='color:#f9d71c;'> 本期定胆推荐：</h4>
             <p>建议本期将号码 <b>[{best_pick[0]:02d}]</b> 作为核心胆码！</p>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div class='safe-card'>
-            <h3 style='color: #00FF7F; margin-top:0;'>✅ 提示：重号指标目前处于安全波动区</h3>
-            <p style='font-size:1.1em;'>当前重号遗漏了 <b>{curr_gap}</b> 期，尚未达到历史高频断档临界点。可按常规常态化过滤条件进行设防。</p>
+            <h3 style='color: #00FF7F; margin-top:0;'> 提示：重号指标目前处于安全波动区</h3>
+            <p style='font-size:1.1em;'>当前重号遗漏了 <b>{curr_gap}</b> 期，尚未达到历史临界点。可按常规过滤条件进行设防。</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#00FF7F;'>💡 备用防守推荐：</h4>
-            <p>如果本期你非要防一手重号，在上一期号码中，号码 <b>[{best_pick[0]:02d}]</b> 的连庄基因最强。</p>
+            <h4 style='color:#00FF7F;'> 备用防守推荐：</h4>
+            <p>如果本期你非要防一手重号，在上一期号码中，号码 <b>[{best_pick[0]:02d}]</b> 的连庄最强。</p>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("### 📊 一、 宏观重号频次与当前遗漏追踪")
+    st.markdown("### 一、历史重号次数与当前遗漏分析")
     stats = result_df['重号数'].value_counts().reset_index()
     stats.columns = ['本期出现重号个数', '历史开出期数']
     stats['发生概率'] = (stats['历史开出期数'] / total_p).map('{:.2%}'.format)
@@ -893,7 +893,7 @@ def render_mod_repeat(df, is_ssq):
     with c2:
         st.bar_chart(result_df['重号数'].value_counts().sort_index(), color="#ff4b4b")
 
-    st.markdown("### 🎯 二、 全盘号码【直落重号体质】全景剖析")
+    st.markdown("###  二、历史全盘号码重号分析")
     hotness = [{'号码': f"{i:02d}", '历史直落重号次数': rep_freq[i]} for i in range(1, red_max + 1)]
     total_all_repeats = sum(rep_freq[1:red_max + 1])
     for i in range(red_max): hotness[i]['全盘重号占比'] = (
@@ -905,19 +905,19 @@ def render_mod_repeat(df, is_ssq):
 
     ca, cb, cc = st.columns(3)
     ca.markdown(
-        f"<div class='stat-card'><h4 style='color:#ff4b4b;'>🔥 最狂热重号</h4><h2>{h_df.iloc[0]['号码']}</h2><p>直落: {h_df.iloc[0]['历史直落重号次数']} 次</p></div>",
+        f"<div class='stat-card'><h4 style='color:#ff4b4b;'> 最热重号</h4><h2>{h_df.iloc[0]['号码']}</h2><p>直落: {h_df.iloc[0]['历史直落重号次数']} 次</p></div>",
         unsafe_allow_html=True)
     cb.markdown(
-        f"<div class='stat-card'><h4 style='color:#f9d71c;'>⚖️ 常态基准重号</h4><h2>{h_df.iloc[len(h_df) // 2]['号码']}</h2><p>直落: {h_df.iloc[len(h_df) // 2]['历史直落重号次数']} 次</p></div>",
+        f"<div class='stat-card'><h4 style='color:#f9d71c;'> 常态基准重号</h4><h2>{h_df.iloc[len(h_df) // 2]['号码']}</h2><p>直落: {h_df.iloc[len(h_df) // 2]['历史直落重号次数']} 次</p></div>",
         unsafe_allow_html=True)
     cc.markdown(
-        f"<div class='stat-card'><h4 style='color:#1c83e1;'>❄️ 最抗拒重号</h4><h2>{h_df.iloc[-1]['号码']}</h2><p>直落: {h_df.iloc[-1]['历史直落重号次数']} 次</p></div>",
+        f"<div class='stat-card'><h4 style='color:#1c83e1;'>️ 最抗拒重号</h4><h2>{h_df.iloc[-1]['号码']}</h2><p>直落: {h_df.iloc[-1]['历史直落重号次数']} 次</p></div>",
         unsafe_allow_html=True)
 
-    with st.expander("📄 点击查看：所有号码【直落重号次数】完整排行榜", expanded=False):
+    with st.expander(" 点击查看：所有号码【垂直重号次数】完整排行榜", expanded=False):
         st_centered_df(h_df_display, use_container_width=True, hide_index=True)
 
-    st.markdown("### ⏱️ 三、 重号连庄与断档时间线 (发生频次排行榜)")
+    st.markdown("### 三、 重号连续期数与间隔时间线 (发生次数排行榜)")
     streaks = s.groupby((s != s.shift()).cumsum()).sum()
     streaks = streaks[streaks > 0]
     streak_counts = streaks.value_counts().reset_index()
@@ -934,18 +934,18 @@ def render_mod_repeat(df, is_ssq):
 
     colA, colB = st.columns(2)
     with colA:
-        st.markdown("<h5 style='color:#f9d71c;'>📊 连庄期数分布排行榜 (Top形态)</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#f9d71c;'> 连续重号排行情况</h5>", unsafe_allow_html=True)
         st_centered_df(streak_counts.head(8), use_container_width=True, hide_index=True)
     with colB:
-        st.markdown("<h5 style='color:#1c83e1;'>📊 断档间隔分布排行榜 (Top形态)</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#1c83e1;'> 重号间隔排行情况</h5>", unsafe_allow_html=True)
         st_centered_df(gap_counts.head(8), use_container_width=True, hide_index=True)
 
-    st.markdown("### 🧬 四、 极限形态：三连重号 (连续 3 期开出) 深度剖析")
+    st.markdown("### 四、三连重号 (连续 3 期开出) 分析")
     t1, t2 = st.columns([1, 1])
     with t1:
         trip_hotness = [{'号码': f"{i:02d}", '连续3期开出总次数': trip_freq[i]} for i in range(1, red_max + 1)]
         trip_df = pd.DataFrame(trip_hotness).sort_values(by='连续3期开出总次数', ascending=False).reset_index(drop=True)
-        st.markdown("<h5 style='color:#8a2be2;'>🏆 三连重号王 排行榜</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#8a2be2;'> 最强三连重号数字 排行榜</h5>", unsafe_allow_html=True)
         st_centered_df(trip_df[trip_df['连续3期开出总次数'] > 0].head(10), use_container_width=True, hide_index=True)
 
     with t2:
@@ -957,31 +957,31 @@ def render_mod_repeat(df, is_ssq):
             gap_trip_counts.columns = ['三连重号爆发的间隔期数', '历史上发生的次数']
             gap_trip_counts['发生概率'] = (gap_trip_counts['历史上发生的次数'] / len(gaps_trip)).map('{:.2%}'.format)
             gap_trip_counts = gap_trip_counts.sort_values('历史上发生的次数', ascending=False)
-            st.markdown("<h5 style='color:#8a2be2;'>⏳ 三连重号爆发间隔 排行榜</h5>", unsafe_allow_html=True)
+            st.markdown("<h5 style='color:#8a2be2;'> 三连重号爆发间隔 排行榜</h5>", unsafe_allow_html=True)
             st_centered_df(gap_trip_counts.head(10), use_container_width=True, hide_index=True)
         else:
             st.info("数据样本中暂无三连重号断档数据。")
 
-    st.markdown("### 📈 五、 最近 50 期重号波形追踪图")
+    st.markdown("### 五、最近 50 期重号波形追踪图")
     st.line_chart(result_df.tail(50).set_index('期号')[['重号数', '三连重号数']], color=["#ff4b4b", "#8a2be2"])
 
-    st.markdown("### 📋 六、 底层明细表")
+    st.markdown("### 六、 历史全量重号数据明细表")
     st_centered_df(result_df[['期号'] + r_cols + ['重号数', '三连重号数']].iloc[::-1], use_container_width=True,
                    hide_index=True, height=400)
 
 
 # 🔥 模块 6：冷热温号
 def render_mod_hot_cold(df, is_ssq):
-    st.markdown("### ⚙️ 分析跨度雷达控制")
+    st.markdown("### ️ 冷热温号分析自定义选择")
     c_m, c_s = st.columns([1, 2])
-    mode = c_m.radio("选择温度测算范围：", ["🎯 自定义近期 (捕获短期波段)", "🌐 全量历史 (探明长期底层基准)"],
+    mode = c_m.radio("选择测算范围：", [" 选择需要分析的区间 ", " 全量历史冷热温号数据分析 "],
                      horizontal=True)
 
     if "自定义" in mode:
         window = c_s.slider("滑动选择最近 N 期：", min_value=30, max_value=min(len(df), 500), value=100, step=10)
     else:
         window = len(df)
-        c_s.info(f"✅ 已开启全盘扫描：系统将对全部 **{len(df)}** 期历史数据进行底层的冷热温基因解析。")
+        c_s.info(f" 已开启全盘扫描：系统将对全部 **{len(df)}** 期历史数据进行冷热温号分析。")
 
     r_cols = [f'r{i + 1}' for i in range(6 if is_ssq else 5)]
     recent_df = df.tail(window).reset_index(drop=True)
@@ -1002,13 +1002,13 @@ def render_mod_hot_cold(df, is_ssq):
 
     temp_df = temp_df.sort_values('频次', ascending=False).reset_index(drop=True)
     hot_c, cold_c = int(red_max * 0.3), int(red_max * 0.3)
-    temp_df['标签'] = '⚖️ 温号'
-    temp_df.loc[:hot_c - 1, '标签'] = '🔥 热号'
-    temp_df.loc[red_max - cold_c:, '标签'] = '❄️ 冷号'
+    temp_df['标签'] = '️ 温号'
+    temp_df.loc[:hot_c - 1, '标签'] = ' 热号'
+    temp_df.loc[red_max - cold_c:, '标签'] = ' 冷号'
 
-    hot_set = set(temp_df[temp_df['标签'] == '🔥 热号']['号码'].astype(int))
-    warm_set = set(temp_df[temp_df['标签'] == '⚖️ 温号']['号码'].astype(int))
-    cold_set = set(temp_df[temp_df['标签'] == '❄️ 冷号']['号码'].astype(int))
+    hot_set = set(temp_df[temp_df['标签'] == ' 热号']['号码'].astype(int))
+    warm_set = set(temp_df[temp_df['标签'] == ' 温号']['号码'].astype(int))
+    cold_set = set(temp_df[temp_df['标签'] == ' 冷号']['号码'].astype(int))
 
     ratio_data = []
     for _, row in recent_df.iterrows():
@@ -1016,12 +1016,12 @@ def render_mod_hot_cold(df, is_ssq):
         h = sum(1 for n in nums if n in hot_set)
         w = sum(1 for n in nums if n in warm_set)
         c = sum(1 for n in nums if n in cold_set)
-        ratio_data.append({'期号': row['期号'], '🔥热号数': h, '⚖️温号数': w, '❄️冷号数': c,
+        ratio_data.append({'期号': row['期号'], '热号数': h, '温号数': w, '冷号数': c,
                            '冷热温结构比 (热:温:冷)': f"{h}:{w}:{c}"})
     ratio_df = pd.DataFrame(ratio_data)
 
-    st.markdown("### 🚨 零、 架构师 AI 号码温度预警系统")
-    hot_df = temp_df[temp_df['标签'] == '🔥 热号'].copy()
+    st.markdown("### 预警提示")
+    hot_df = temp_df[temp_df['标签'] == ' 热号'].copy()
     hot_df['警戒阈值'] = (window / (hot_df['频次'] + 1)) * 2.5
     volcanoes = hot_df[hot_df['当前遗漏'] > hot_df['警戒阈值']]
 
@@ -1030,41 +1030,41 @@ def render_mod_hot_cold(df, is_ssq):
         num_str = "、".join([f"[{n}]" for n in volcano_nums])
         st.markdown(f"""
         <div class='alert-card'>
-            <h3 style='color: #ff4b4b; margin-top:0;'>⚠️ 警报：探明“休眠火山”级热号，极易井喷！</h3>
-            <p style='font-size:1.1em;'>系统监测到，当前跨度内极度活跃的热号 <b>{num_str}</b>，目前的遗漏期数已严重超过其理论极值区！</p>
-            <p>它们在过去的 {window} 期内属于绝对热点，但近期遭到了物理性压抑。目前处于随时爆发的临界点！</p>
+            <h3 style='color: #ff4b4b; margin-top:0;'>️ 警报：检测到热号，极易井喷！</h3>
+            <p style='font-size:1.1em;'>当前跨度内极度活跃的热号 <b>{num_str}</b>，目前的遗漏期数已严重超过其理论值范围！</p>
+            <p>它们在过去的 {window} 期内属于绝对热点，但近期处于断档。目前处于随时爆发的临界点！</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#f9d71c;'>🎯 本期动态定胆推荐：</h4>
-            <p>本期在配置过滤大底或定胆时，强烈建议将 <b>{num_str}</b> 纳入核心定胆库。以博取高频均值回归的利润！</p>
+            <h4 style='color:#f9d71c;'> 本期定胆推荐：</h4>
+            <p>本期在配置过滤大底或定胆时，建议将 <b>{num_str}</b> 纳入重号定胆库。以博取均值回归的利润！</p>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div class='safe-card'>
-            <h3 style='color: #00FF7F; margin-top:0;'>✅ 提示：大盘温度梯度健康，无极端休眠热号</h3>
-            <p style='font-size:1.1em;'>当前所有的【热号】都在正常的活跃期内轮动开出，没有发现被严重压抑的极限号码。</p>
+            <h3 style='color: #00FF7F; margin-top:0;'> 提示：大盘温度号码稳定，无极端热号</h3>
+            <p style='font-size:1.1em;'>当前所有的【热号】都在正常的活跃期内滚动开出，没有发现被严重遗漏的号码。</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#00FF7F;'>💡 常规防守推荐：</h4>
-            <p>本期大盘无明显定胆干预信号。请参考下方的<b>冷热温结构比</b>配置常规缩水大底即可。</p>
+            <h4 style='color:#00FF7F;'> 常规防守推荐：</h4>
+            <p>本期大盘无明显重号定胆信号。请参考下方的<b>冷热温结构比</b>配置常规缩水大底即可。</p>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown(f"### 🌡️ 一、 指定跨度 ({window}期) 核心号码分级池")
+    st.markdown(f"### ️ 一、 历史 ({window}期) 号码分级池")
     c1, c2, c3 = st.columns(3)
-    c1.markdown("<h4>🔥 绝对热号池 (Top 30%)</h4>" + "".join(
-        [f"<span class='num-ball-hot'>{x}</span>" for x in temp_df[temp_df['标签'] == '🔥 热号']['号码']]),
+    c1.markdown("<h4> 热号池 (Top 30%)</h4>" + "".join(
+        [f"<span class='num-ball-hot'>{x}</span>" for x in temp_df[temp_df['标签'] == ' 热号']['号码']]),
                 unsafe_allow_html=True)
-    c2.markdown("<h4>⚖️ 中坚温号池 (Middle 40%)</h4>" + "".join(
-        [f"<span class='num-ball-warm'>{x}</span>" for x in temp_df[temp_df['标签'] == '⚖️ 温号']['号码']]),
+    c2.markdown("<h4>️ 温号池 (Middle 40%)</h4>" + "".join(
+        [f"<span class='num-ball-warm'>{x}</span>" for x in temp_df[temp_df['标签'] == '️ 温号']['号码']]),
                 unsafe_allow_html=True)
-    c3.markdown("<h4>❄️ 冰冻冷号池 (Bottom 30%)</h4>" + "".join(
-        [f"<span class='num-ball-cold'>{x}</span>" for x in temp_df[temp_df['标签'] == '❄️ 冷号']['号码']]),
+    c3.markdown("<h4>️ 冷号池 (Bottom 30%)</h4>" + "".join(
+        [f"<span class='num-ball-cold'>{x}</span>" for x in temp_df[temp_df['标签'] == ' 冷号']['号码']]),
                 unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown(f"### 🧬 二、 “冷热温”黄金搭配比例与近期波形")
+    st.markdown(f"###  二、 “冷热温”结构比与近期波形分析")
     st.write(
-        "💡 *图表说明：横向柱子总高度固定（代表开奖总球数）。色块大小代表该期开出了几个热/温/冷号。一目了然看穿大盘偏移。*")
+        " *图表说明：横向柱子总高度固定（代表开奖总球数）。色块大小代表该期开出了几个热/温/冷号。*")
 
     L2, R2 = st.columns([1, 2])
     with L2:
@@ -1072,24 +1072,24 @@ def render_mod_hot_cold(df, is_ssq):
         ratio_stats.columns = ['冷热温结构比 (热:温:冷)', '发生期数']
         ratio_stats['概率占比'] = (ratio_stats['发生期数'] / window).map('{:.2%}'.format)
 
-        st.markdown(f"**(1) 基于 {window} 期的结构分布排行榜**")
+        st.markdown(f"** 基于 {window} 期的结构分布排行榜**")
         st_centered_df(ratio_stats, use_container_width=True, hide_index=True)
 
         top1_ratio = ratio_stats.iloc[0]['冷热温结构比 (热:温:冷)']
         st.info(
-            f"**🎯 过滤定胆建议：**\n\n在当前跨度中，最常规的组号比例是 **{top1_ratio}**。配号时，请严格参考这一梯队比例分配号码！")
+            f"** 过滤定胆建议：**\n\n在当前跨度中，最常规的组号比例是 **{top1_ratio}**。配号时，请参考这一梯队比例分配号码！")
 
     with R2:
-        st.markdown("**(2) 最近 50 期冷热温结构堆叠走势图**")
-        trend_ratio_df = ratio_df.tail(50).set_index('期号')[['🔥热号数', '⚖️温号数', '❄️冷号数']]
+        st.markdown("** 最近 50 期冷热温结构堆叠图**")
+        trend_ratio_df = ratio_df.tail(50).set_index('期号')[['热号数', '温号数', '冷号数']]
         st.bar_chart(trend_ratio_df, color=["#ff4b4b", "#f9d71c", "#1c83e1"])
 
     st.markdown("---")
-    st.markdown(f"### 📈 三、 全盘号码【出现频次】分布直方图")
+    st.markdown(f"### 三、全盘号码出现次数分布柱状图")
     st.bar_chart(temp_df.set_index('号码')[['频次']].sort_index(), color="#ff4b4b")
 
-    st.markdown("### 📋 四、 底层温度特征明细表")
-    st.write("💡 *操作提示：您可以点击表头（如点击“当前遗漏”），系统会自动为您排列出当前消失最久的号码。*")
+    st.markdown("### 四、历史号码冷热温号码排行及遗漏明细表")
+    st.write(" *操作提示：您可以点击表头（如点击“当前遗漏”），系统会自动为您排列出当前消失最久的号码。*")
     st_centered_df(temp_df, use_container_width=True, hide_index=True, height=400)
 
 
@@ -1307,14 +1307,14 @@ def render_tab_alert_shared(pillars, seq_df, recommendation):
             alerts.append({'name': name, 'gap': current_gap, 'mode': mode_gap})
     if len(alerts) > 0:
         alert_msgs = "".join([
-                                 f"<li style='margin-bottom: 5px;'>🎯 形态 <b>{a['name']}</b> 常态每 {a['mode']} 期回补，现已遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！(极度紧绷)</li>"
+                                 f"<li style='margin-bottom: 5px;'> 形态 <b>{a['name']}</b> 常态每 {a['mode']} 期回补，现已遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！(即将爆发)</li>"
                                  for a in alerts])
         st.markdown(
-            f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0;'>🚨 AI 局部形态爆发预警</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 定胆建议：</b>{recommendation}</span></div>",
+            f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0;'> 爆发预警</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b> 定胆建议：</b>{recommendation}</span></div>",
             unsafe_allow_html=True)
     else:
         st.markdown(
-            f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0;'>✅ 本页各形态指标处于安全震荡区</h4><span style='font-size:0.95em; color:#bbb;'>防守常态即可。</span></div>",
+            f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0;'> 本页各形态指标处于正常范围区</h4><span style='font-size:0.95em; color:#bbb;'>防守常态即可。</span></div>",
             unsafe_allow_html=True)
 
 
@@ -1342,8 +1342,8 @@ def render_metric_card_shared(title, c2, hit2, p2, c2_c, c3, hit3, p3, c3_c, c4,
 
 
 def render_seq_shared(df, is_ssq, title, mode, recs):
-    st.markdown(f"### 📊 一、 各步长规律{title}深度剖析 (全息拆解)")
-    with st.spinner("正在提取基因矩阵..."):
+    st.markdown(f"### 一、各步长规律{title}深度解析")
+    with st.spinner("正在提取数据矩阵..."):
         seq_df = calculate_universal_sequence(df, is_ssq, mode)
 
     last_row = seq_df.iloc[-1]
@@ -1364,8 +1364,8 @@ def render_seq_shared(df, is_ssq, title, mode, recs):
                 last_row[f'{k}_遗漏'], tot, tot_p)
 
     with tab1:
-        render_tab_alert_shared([('step_1_2连', 'step_1_遗漏', f'【步长1:绝对顺序{name_t}】', 1.5)], seq_df, recs[0])
-        render_metric_card_shared(f"📌 绝对顺序{name_t}", *pass_args('step_1'), "#4da6ff")
+        render_tab_alert_shared([('step_1_2连', 'step_1_遗漏', f'【步长1:顺序{name_t}】', 1.5)], seq_df, recs[0])
+        render_metric_card_shared(f" 顺序{name_t}", *pass_args('step_1'), "#4da6ff")
     with tab2:
         render_tab_alert_shared([('step_2_odd_2连', 'step_2_odd_遗漏', f'【纯奇数{name_t}】', 1.5),
                                  ('step_2_even_2连', 'step_2_even_遗漏', f'【纯偶数{name_t}】', 1.5)], seq_df, recs[1])
@@ -1382,11 +1382,11 @@ def render_seq_shared(df, is_ssq, title, mode, recs):
         render_tab_alert_shared([('step_4_2连', 'step_4_遗漏', f'【步长4:交叉{name_t}】', 1.5)], seq_df, recs[3])
         render_metric_card_shared(f"🟤 交叉{name_t}", *pass_args('step_4'), "#ff7f50")
 
-    st.markdown(f"### 📈 二、 最近 50 期【四维核心 2{name_t}】阵营博弈走势图")
+    st.markdown(f"### 二、 最近 50 期各步长【顺序2{name_t}】走势图")
     st.line_chart(seq_df.tail(50).set_index('期号')[['step_1_2连', 'step_2_odd_2连', 'step_2_even_2连', 'step_4_2连']],
                   color=["#4da6ff", "#f9d71c", "#e6b800", "#ff7f50"])
 
-    st.markdown("### 📋 三、 历史数据底层明细 (支持检视追踪详情)")
+    st.markdown("###  三、 全量历史数据各步长明细表")
     disp_cols = ['期号', '开奖红球']
     if mode == 2: disp_cols.append('是否发生跳期')
     if mode == 3: disp_cols.append('是否发生斜连')
@@ -1406,7 +1406,7 @@ def render_seq_shared(df, is_ssq, title, mode, recs):
 
 # 🎱 模块 10：尾号
 def render_mod_tail(df, is_ssq):
-    st.markdown("### 📊 一、 同尾与尾数连号 分布式深度解构")
+    st.markdown("### 一、 同尾与尾数连号分布结构分析")
     with st.spinner("正在将号码矩阵降维至尾数空间，剥离同尾与步长偏态..."):
         seq_df = calculate_tail_features(df, is_ssq)
 
@@ -1414,7 +1414,7 @@ def render_mod_tail(df, is_ssq):
     total_periods = len(seq_df)
 
     tab0, tab1, tab2, tab3 = st.tabs(
-        ["🔥 基础: 同尾号(含三同尾)", "🟢 步长=1 (顺序尾连)", "🟡 步长=2 (奇/偶尾分离)", "🟣 步长=3 (等差尾连)"])
+        [" 基础: 同尾号(含三同尾)", "🟢 步长=1 (顺序尾连)", "🟡 步长=2 (奇/偶尾分离)", "🟣 步长=3 (等差尾连)"])
 
     def pass_args_tail(k):
         tot = ((seq_df[f'{k}_2连'] + seq_df[f'{k}_3连'] + seq_df[f'{k}_4连']) > 0).sum()
@@ -1429,23 +1429,23 @@ def render_mod_tail(df, is_ssq):
     with tab0:
         render_tab_alert_shared([('同尾_双同尾组数', '同尾_双同尾遗漏', '【双同尾 (2个同尾号)】', 1.5),
                                  ('同尾_三同尾组数', '同尾_三同尾遗漏', '【三同尾 (3个同尾号)】', 1.3)], seq_df,
-                                "若报警【三同尾】，本期请务必强行配置一组含 3 个同尾数的单子！")
+                                "若报警【三同尾】，本期建议配置一组含 3 个同尾数的单子！")
         c1, c2 = st.columns(2)
         with c1:
             hit_d = (seq_df['同尾_双同尾组数'] > 0).sum()
             st.markdown(
-                f"<div class='stat-card' style='border-left: 5px solid #ff4b4b;'><h4 style='color: #ff4b4b;'>📌 常态：双同尾 (如 13, 23)</h4><p>全盘共覆盖: <span class='highlight'>{hit_d}</span> 期 (占总盘 <b>{hit_d / total_periods:.2%}</b>)</p><p>⏳ 当前遗漏: <b style='color:#ff4b4b'>{last_row['同尾_双同尾遗漏']}</b> 期</p></div>",
+                f"<div class='stat-card' style='border-left: 5px solid #ff4b4b;'><h4 style='color: #ff4b4b;'> 常态：双同尾 (如 13, 23)</h4><p>全盘共覆盖: <span class='highlight'>{hit_d}</span> 期 (占总盘 <b>{hit_d / total_periods:.2%}</b>)</p><p> 当前遗漏: <b style='color:#ff4b4b'>{last_row['同尾_双同尾遗漏']}</b> 期</p></div>",
                 unsafe_allow_html=True)
         with c2:
             hit_t = (seq_df['同尾_三同尾组数'] > 0).sum()
             st.markdown(
-                f"<div class='stat-card' style='border-left: 5px solid #e6b800;'><h4 style='color: #e6b800;'>📌 偏冷致命：三同尾 (如 05, 15, 25)</h4><p>全盘共覆盖: <span class='highlight'>{hit_t}</span> 期 (占总盘 <b>{hit_t / total_periods:.2%}</b>)</p><p>⏳ 当前遗漏: <b style='color:#ff4b4b'>{last_row['同尾_三同尾遗漏']}</b> 期</p></div>",
+                f"<div class='stat-card' style='border-left: 5px solid #e6b800;'><h4 style='color: #e6b800;'> 偏冷：三同尾 (如 05, 15, 25)</h4><p>全盘共覆盖: <span class='highlight'>{hit_t}</span> 期 (占总盘 <b>{hit_t / total_periods:.2%}</b>)</p><p> 当前遗漏: <b style='color:#ff4b4b'>{last_row['同尾_三同尾遗漏']}</b> 期</p></div>",
                 unsafe_allow_html=True)
 
     with tab1:
         render_tab_alert_shared([('step_1_2连', 'step_1_遗漏', '【尾数步长1: 顺序尾连】', 1.5)], seq_df,
                                 "配置至少一组尾数相邻的号码（如尾3和尾4）。")
-        render_metric_card_shared("📌 顺序尾数连号 (如 尾1-2-3)", *pass_args_tail('step_1'), "#4da6ff", is_tail=True)
+        render_metric_card_shared(" 顺序尾数连号 (如 尾1-2-3)", *pass_args_tail('step_1'), "#4da6ff", is_tail=True)
     with tab2:
         render_tab_alert_shared([('step_2_odd_2连', 'step_2_odd_遗漏', '【尾数步长2: 奇数尾连】', 1.5),
                                  ('step_2_even_2连', 'step_2_even_遗漏', '【尾数步长2: 偶数尾连】', 1.5)], seq_df,
@@ -1460,14 +1460,14 @@ def render_mod_tail(df, is_ssq):
                                 "选择尾数跨度为 3 的组合（如尾2和尾5）。")
         render_metric_card_shared("🟣 步长3等差尾连 (如 尾1-4-7)", *pass_args_tail('step_3'), "#8a2be2", is_tail=True)
 
-    st.markdown("### 📈 二、 最近 50 期【尾数雷达】核心走势")
+    st.markdown("### 二、最近 50 期尾号走势")
     chart_data = seq_df.tail(50).set_index('期号')[
         ['同尾_双同尾组数', '同尾_三同尾组数', 'step_1_2连', 'step_2_odd_2连', 'step_2_even_2连']].rename(
         columns={'同尾_双同尾组数': '双同尾数', '同尾_三同尾组数': '三同尾数', 'step_1_2连': '顺序尾2连',
                  'step_2_odd_2连': '奇数尾2连', 'step_2_even_2连': '偶数尾2连'})
     st.line_chart(chart_data, color=["#ff4b4b", "#e6b800", "#4da6ff", "#f9d71c", "#8a2be2"])
 
-    st.markdown("### 📋 三、 历史数据底层明细 (支持检视追踪详情)")
+    st.markdown("### 三、 全量历史数据尾号明细表")
     d_df = seq_df[
         ['期号', '开奖红球', '尾数阵列', '同尾_双同尾明细', '同尾_双同尾遗漏', '同尾_三同尾明细', '同尾_三同尾遗漏',
          'step_1_明细', 'step_1_遗漏', 'step_2_odd_明细', 'step_2_even_明细', 'step_3_明细', 'step_3_遗漏']].iloc[
@@ -1531,15 +1531,15 @@ def calculate_zone_features(df, is_ssq):
 
 
 def render_mod_zone(df, is_ssq):
-    st.markdown("### 📊 一、 大盘三区结构与极端偏态剖析")
+    st.markdown("### 一、 三区结构与极端偏区解析")
     total_periods = len(df)
 
-    with st.spinner("正在启动三区物理切分，扫描大盘极端偏态..."):
+    with st.spinner("正在启动三区物理切分，扫描大盘极端偏区..."):
         zone_df, a12, a23 = calculate_zone_features(df, is_ssq)
 
     last_row = zone_df.iloc[-1]
     tab0, tab1, tab2, tab3, tab4 = st.tabs(
-        ["🌐 全局结构比", "🔴 一区态势", "🟡 二区态势", "🔵 三区态势", "🧱 边界锚点(城墙号)"])
+        [" 全局结构比", "🔴 一区态势", "🟡 二区态势", "🔵 三区态势", " 边界点(交界号)"])
 
     def render_zone_alert(pillars, recommendation="常态分布中，根据历史大势配号即可。"):
         alerts = []
@@ -1553,21 +1553,21 @@ def render_mod_zone(df, is_ssq):
                 alerts.append({'name': name, 'gap': current_gap, 'mode': mode_gap})
         if len(alerts) > 0:
             alert_msgs = "".join([
-                                     f"<li style='margin-bottom: 5px;'>🎯 大盘极限 <b>{a['name']}</b> 常态每 {a['mode']} 期发生，现已遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>"
+                                     f"<li style='margin-bottom: 5px;'> 大盘 <b>{a['name']}</b> 常态每 {a['mode']} 期发生，现已遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>"
                                      for a in alerts])
             st.markdown(
-                f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0; margin-bottom: 10px;'>🚨 AI 宏观态势爆发预警</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 定胆与杀号建议：</b>{recommendation}</span></div>",
+                f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0; margin-bottom: 10px;'>预警提示</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 定胆与杀号建议：</b>{recommendation}</span></div>",
                 unsafe_allow_html=True)
         else:
             st.markdown(
-                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'>✅ 本区大盘指标处于安全震荡期</h4><span style='font-size:0.95em; color:#bbb;'>未发现极端的断区或爆区压抑信号，平稳防守即可。</span></div>",
+                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'> 本区大盘指标处于安全范围</h4><span style='font-size:0.95em; color:#bbb;'>未发现极端的断区或爆区信号，平稳防守即可。</span></div>",
                 unsafe_allow_html=True)
 
     def render_zone_metric_card(title, break_cnt, burst_cnt, break_omit, burst_omit, color):
         brk_rate = break_cnt / total_periods if total_periods else 0
         bst_rate = burst_cnt / total_periods if total_periods else 0
         st.markdown(
-            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 15px;'>{title}</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>💀 绝杀断区 (0个号):</span> 发生 <b style='color:#ff4b4b'>{break_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {brk_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{break_omit}</b> 期</span></div><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔥 极限爆区 (≥4个):</span> 发生 <b style='color:#f9d71c'>{burst_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {bst_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{burst_omit}</b> 期</span></div></div>",
+            f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 15px;'>{title}</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'> 断区 (0个号):</span> 发生 <b style='color:#ff4b4b'>{break_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {brk_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'> 当前遗漏: <b style='color:#fff'>{break_omit}</b> 期</span></div><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'> 爆区 (≥4个):</span> 发生 <b style='color:#f9d71c'>{burst_cnt}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {bst_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'> 当前遗漏: <b style='color:#fff'>{burst_omit}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
     with tab0:
@@ -1576,10 +1576,10 @@ def render_mod_zone(df, is_ssq):
         ratio_counts['全盘占比'] = (ratio_counts['历史发生次数'] / total_periods).apply(lambda x: f"{x:.2%}")
         colA, colB = st.columns([1, 2])
         with colA:
-            st.markdown("#### 🏆 历史主流结构比 TOP 10")
+            st.markdown("#### 三区历史主流结构比")
             st_centered_df(ratio_counts.head(10), hide_index=True, use_container_width=True)
         with colB:
-            st.markdown("#### 📈 最近 50 期三区数量堆叠图")
+            st.markdown("#### 最近 50 期三区数量堆叠图")
             st.bar_chart(zone_df.tail(50).set_index('期号')[['一区数量', '二区数量', '三区数量']],
                          color=["#ff4b4b", "#f9d71c", "#4da6ff"])
 
@@ -1587,30 +1587,30 @@ def render_mod_zone(df, is_ssq):
         render_zone_alert(
             [('一区断区', '一区断区遗漏', '【一区·断区】', 1.5), ('一区爆区', '一区爆区遗漏', '【一区·爆区】', 1.5)],
             "若报警断区，请大胆杀掉一区所有号码；若报警爆区，请重仓一区博取大奖！")
-        render_zone_metric_card("🔴 第一区 (小号区) 极限特征", zone_df['一区断区'].sum(), zone_df['一区爆区'].sum(),
+        render_zone_metric_card("🔴 第一区 (小号区) 数据汇总", zone_df['一区断区'].sum(), zone_df['一区爆区'].sum(),
                                 last_row['一区断区遗漏'], last_row['一区爆区遗漏'], "#ff4b4b")
 
     with tab2:
         render_zone_alert(
             [('二区断区', '二区断区遗漏', '【二区·断区】', 1.5), ('二区爆区', '二区爆区遗漏', '【二区·爆区】', 1.5)],
             "若报警断区，请大胆杀掉二区所有号码；若报警爆区，请重仓二区博取大奖！")
-        render_zone_metric_card("🟡 第二区 (中号区) 极限特征", zone_df['二区断区'].sum(), zone_df['二区爆区'].sum(),
+        render_zone_metric_card("🟡 第二区 (中号区) 数据汇总", zone_df['二区断区'].sum(), zone_df['二区爆区'].sum(),
                                 last_row['二区断区遗漏'], last_row['二区爆区遗漏'], "#f9d71c")
 
     with tab3:
         render_zone_alert(
             [('三区断区', '三区断区遗漏', '【三区·断区】', 1.5), ('三区爆区', '三区爆区遗漏', '【三区·爆区】', 1.5)],
             "若报警断区，请大胆杀掉三区所有号码；若报警爆区，请重仓三区博取大奖！")
-        render_zone_metric_card("🔵 第三区 (大号区) 极限特征", zone_df['三区断区'].sum(), zone_df['三区爆区'].sum(),
+        render_zone_metric_card("🔵 第三区 (大号区) 数据汇总", zone_df['三区断区'].sum(), zone_df['三区爆区'].sum(),
                                 last_row['三区断区遗漏'], last_row['三区爆区遗漏'], "#4da6ff")
 
     with tab4:
         all_anchors = a12 + a23
         st.markdown(
-            f"#### 🧱 决定大盘重心的城墙号：<span class='highlight'>[{'、'.join([str(x) for x in all_anchors])}]</span>",
+            f"#### 决定大盘重心的交界号：<span class='highlight'>[{'、'.join([str(x) for x in all_anchors])}]</span>",
             unsafe_allow_html=True)
 
-        last_hit = last_row['触碰边界锚点']
+        last_hit = last_row['触碰交界锚点']
         if last_hit != "-":
             hit_nums = [int(x) for x in last_hit.split()]
             hit_1_2 = [x for x in hit_nums if x in a12]
@@ -1618,27 +1618,27 @@ def render_mod_zone(df, is_ssq):
 
             advice = ""
             if hit_1_2 and hit_2_3:
-                advice = "💥 **一二区与二三区城墙同时告破！** 极其罕见的大盘撕裂信号！下期防守重心两极分化，或者全盘收缩回二区腹地。"
+                advice = " **一二区与二三区交界同时告破！** 极其罕见的大盘撕裂信号！下期防守重心两极分化，或者全盘收缩回二区腹地。"
             elif hit_1_2:
-                advice = f"⚠️ **一二区交界 (撞击了 {hit_1_2[0]})！** 这说明能量正在一二区之间摩擦。下一期大盘重心极易向二区渗透，防守斜连号 {hit_1_2[0] - 1} 或 {hit_1_2[0] + 1}！"
+                advice = f" **一二区交界 (撞击了 {hit_1_2[0]})！** 这说明正在一二区之间摩擦。下一期大盘重心极易向二区渗透，防守斜连号 {hit_1_2[0] - 1} 或 {hit_1_2[0] + 1}！"
             elif hit_2_3:
-                advice = f"⚠️ **二三区交界 (撞击了 {hit_2_3[0]})！** 这暗示大盘重心极有可能跨入三区大号区，或者被反弹回二区核心。重点防守斜连号 {hit_2_3[0] - 1} 或 {hit_2_3[0] + 1}！"
+                advice = f"️ **二三区交界 (撞击了 {hit_2_3[0]})！** 这暗示大盘重心极有可能跨入三区大号区，或者被反弹回二区核心。重点防守斜连号 {hit_2_3[0] - 1} 或 {hit_2_3[0] + 1}！"
 
             st.markdown(
-                f"<div class='alert-card' style='border-left-color:#8a2be2;'><h4 style='color: #8a2be2; margin-top:0; margin-bottom: 10px;'>🚨 AI 最新期锚点信号解读</h4><p style='font-size:1.05em;'>最新一期开出了边界锚点 <b>[{last_hit}]</b>！</p><span style='font-size:0.95em; color:#f9d71c;'><b>💡 实战推演：</b>{advice}</span></div>",
+                f"<div class='alert-card' style='border-left-color:#8a2be2;'><h4 style='color: #8a2be2; margin-top:0; margin-bottom: 10px;'> 最新期交界点信号解读</h4><p style='font-size:1.05em;'>最新一期开出了边界锚点 <b>[{last_hit}]</b>！</p><span style='font-size:0.95em; color:#f9d71c;'><b> 实战推演：</b>{advice}</span></div>",
                 unsafe_allow_html=True)
         else:
             st.markdown(
-                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'>✅ 最新期未触碰边界锚点</h4><span style='font-size:0.95em; color:#bbb;'>当前大盘重心稳定在各区腹地，暂无明显的重心位移预警。</span></div>",
+                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'> 最新期未触碰交界锚点</h4><span style='font-size:0.95em; color:#bbb;'>当前大盘重心稳定在各区腹地，暂无明显的重心位移预警。</span></div>",
                 unsafe_allow_html=True)
 
         hit_anc = zone_df['锚点命中'].sum()
         anc_rate = hit_anc / total_periods if total_periods else 0
         st.markdown(
-            f"<div class='stat-card' style='border-left: 4px solid #8a2be2;'><h4 style='color: #8a2be2; margin-bottom: 15px;'>🧱 边界锚点活跃度历史统计</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🎯 触碰城墙号:</span> 发生 <b style='color:#8a2be2'>{hit_anc}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {anc_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#fff'>{last_row['锚点遗漏']}</b> 期</span></div></div>",
+            f"<div class='stat-card' style='border-left: 4px solid #8a2be2;'><h4 style='color: #8a2be2; margin-bottom: 15px;'> 边界点活跃度历史统计</h4><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; text-align:left;'><span style='color:#fff; font-weight:bold;'> 触碰交界号:</span> 发生 <b style='color:#8a2be2'>{hit_anc}</b> 次 <span style='color:#bbb; font-size:0.9em;'>(占全盘 {anc_rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'> 当前遗漏: <b style='color:#fff'>{last_row['锚点遗漏']}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
-    st.markdown("### 📋 二、 历史数据底层明细 (支持检视追踪详情)")
+    st.markdown("### 二、全量历史三区结构数据明细表")
     display_df = zone_df[
         ['期号', '开奖红球', '三区比', '一区断区遗漏', '一区爆区遗漏', '二区断区遗漏', '二区爆区遗漏', '三区断区遗漏',
          '三区爆区遗漏', '触碰边界锚点', '锚点遗漏']].iloc[::-1]
