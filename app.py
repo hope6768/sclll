@@ -1838,7 +1838,7 @@ def render_mod_sum_span(df, is_ssq):
     st.markdown("### 历史全量和跨数据明细表")
     display_df = macro_df[
         ['期号', '开奖红球', '和值', '跨度', '和值振幅', '重心均值', '和奇漏', '和偶漏', '跨奇漏', '跨偶漏', '极震漏',
-         '横盘漏', '联_和跨奇奇漏', '联_和跨奇偶漏', '联_和跨偶奇漏', '联_和跨偶偶漏']].iloc[::-1]
+         '横盘漏', '联_奇奇漏', '联_奇偶漏', '联_偶奇漏', '联_偶偶漏']].iloc[::-1]
     st_centered_df(display_df, use_container_width=True, hide_index=True, height=500)
 
 
