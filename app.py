@@ -1731,9 +1731,9 @@ def calculate_macro_features(df, is_ssq):
 
 
 def render_mod_sum_span(df, is_ssq):
-    st.markdown("### ⚖️ 和跨双擎 动态联动大底控制台")
+    st.markdown("### 和值跨度及和跨联动性解析")
     total_periods = len(df)
-    with st.spinner("正在计算大盘绝对温度与张力，构筑满血版多维矩阵..."):
+    with st.spinner("正在计算大盘和跨张力，构筑满血版多维矩阵..."):
         macro_df = calculate_macro_features(df, is_ssq)
     last_row = macro_df.iloc[-1]
 
@@ -1747,14 +1747,14 @@ def render_mod_sum_span(df, is_ssq):
                 alerts.append({'name': name, 'gap': current_gap, 'threshold': dynamic_thresh})
         if len(alerts) > 0:
             alert_msgs = "".join([
-                                     f"<li style='margin-bottom: 5px;'>🎯 <b>{a['name']}</b> 动态极限允许遗漏为 {a['threshold']} 期，现已爆表遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>"
+                                     f"<li style='margin-bottom: 5px;'> <b>{a['name']}</b> 最大遗漏为 {a['threshold']} 期，现已爆表遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>"
                                      for a in alerts])
             st.markdown(
-                f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0; margin-bottom: 10px;'>🚨 AI 动态波动偏态预警</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 智能战术指导：</b>{recommendation_template}</span></div>",
+                f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0; margin-bottom: 10px;'>偏态预警提示</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b> 智能建议：</b>{recommendation_template}</span></div>",
                 unsafe_allow_html=True)
         else:
             st.markdown(
-                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'>✅ 本页宏观指标未击穿布林带上限</h4><span style='font-size:0.95em; color:#bbb;'>大盘物理张力与温度均在合理范围内，无强烈回归信号。</span></div>",
+                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'> 本页数据未突破均值上限</h4><span style='font-size:0.95em; color:#bbb;'>大盘数据均在合理范围内，无强烈遗漏信号。</span></div>",
                 unsafe_allow_html=True)
 
     def render_macro_metric_card(title, hit_cnt, hit_omit, total_p, color, desc=""):
@@ -1764,7 +1764,7 @@ def render_mod_sum_span(df, is_ssq):
             unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["🌡️ 和值 (Sum) 分析", "🏹 跨度 (Span) 分析", "⚔️ 和跨联动矩阵", "📈 高阶：重心均值 & 振幅"])
+        [" 和值 (Sum) 分析", " 跨度 (Span) 分析", "️ 和跨联动矩阵", " 高阶：重心均值 & 振幅"])
     with tab1:
         render_macro_alert([('和奇', '和奇漏', '【和值为奇数】'), ('和偶', '和偶漏', '【和值为偶数】')], macro_df,
                            "若报警【奇数和值】，大底奇数球总数必是单数；若报警【偶数和值】，奇数球总数必是双数！")
@@ -1776,9 +1776,9 @@ def render_mod_sum_span(df, is_ssq):
         render_macro_alert([('和尾小', '和尾小漏', '【和值尾数0~4】'), ('和尾大', '和尾大漏', '【和值尾数5~9】')], macro_df,
                            "结合报警，精准切割和值的个位数范围，可毙掉 50% 废底！")
         colA, colB = st.columns(2)
-        with colA: render_macro_metric_card("🧱 和值小尾 (0-4)", macro_df['和尾小'].sum(), last_row['和尾小漏'],
+        with colA: render_macro_metric_card(" 和值小尾 (0-4)", macro_df['和尾小'].sum(), last_row['和尾小漏'],
                                             total_periods, "#ff7f50")
-        with colB: render_macro_metric_card("🧱 和值大尾 (5-9)", macro_df['和尾大'].sum(), last_row['和尾大漏'],
+        with colB: render_macro_metric_card(" 和值大尾 (5-9)", macro_df['和尾大'].sum(), last_row['和尾大漏'],
                                             total_periods, "#ff4b4b")
     with tab2:
         render_macro_alert([('跨奇', '跨奇漏', '【跨度为奇数】'), ('跨偶', '跨偶漏', '【跨度为偶数】')], macro_df,
@@ -1798,47 +1798,47 @@ def render_mod_sum_span(df, is_ssq):
     with tab3:
         render_macro_alert([('联_奇奇', '联_奇奇漏', '【和奇+跨奇】'), ('联_奇偶', '联_奇偶漏', '【和奇+跨偶】'),
                             ('联_偶奇', '联_偶奇漏', '【和偶+跨奇】'), ('联_偶偶', '联_偶偶漏', '【和偶+跨偶】')], macro_df,
-                           "核弹级信号！若此处报警，代表大盘奇偶与首尾奇偶被【同时锁死】！")
+                           "若此处报警，代表大盘奇偶与首尾奇偶被【同时锁死】！")
         col1, col2 = st.columns(2)
         with col1:
-            render_macro_metric_card("🎯 象限 1：和奇 - 跨奇", macro_df['联_奇奇'].sum(), last_row['联_奇奇漏'],
+            render_macro_metric_card(" 特征 1：和奇 - 跨奇", macro_df['联_奇奇'].sum(), last_row['联_奇奇漏'],
                                      total_periods, "#e91e63", "奇数球占单数，首尾一奇一偶")
-            render_macro_metric_card("🎯 象限 3：和偶 - 跨奇", macro_df['联_偶奇'].sum(), last_row['联_偶奇漏'],
+            render_macro_metric_card(" 特征 3：和偶 - 跨奇", macro_df['联_偶奇'].sum(), last_row['联_偶奇漏'],
                                      total_periods, "#00bcd4", "奇数球占双数，首尾一奇一偶")
         with col2:
-            render_macro_metric_card("🎯 象限 2：和奇 - 跨偶", macro_df['联_奇偶'].sum(), last_row['联_奇偶漏'],
+            render_macro_metric_card(" 特征 2：和奇 - 跨偶", macro_df['联_奇偶'].sum(), last_row['联_奇偶漏'],
                                      total_periods, "#9c27b0", "奇数球占单数，首尾同奇或同偶")
-            render_macro_metric_card("🎯 象限 4：和偶 - 跨偶", macro_df['联_偶偶'].sum(), last_row['联_偶偶漏'],
+            render_macro_metric_card(" 特征 4：和偶 - 跨偶", macro_df['联_偶偶'].sum(), last_row['联_偶偶漏'],
                                      total_periods, "#009688", "奇数球占双数，首尾同奇或同偶")
     with tab4:
         render_macro_alert([('极速震荡', '极震漏', '【大盘振幅≥35】'), ('横盘锁死', '横盘漏', '【大盘振幅≤8】')], macro_df,
                            f"若报警极速震荡，和值必将暴跌或暴涨；若报警横盘锁死，请复制上一期选号重心！")
         col1, col2 = st.columns(2)
-        with col1: render_macro_metric_card("🌊 极速震荡 (振幅 ≥ 35)", macro_df['极速震荡'].sum(), last_row['极震漏'],
+        with col1: render_macro_metric_card(" 极速震荡 (振幅 ≥ 35)", macro_df['极速震荡'].sum(), last_row['极震漏'],
                                             total_periods, "#ff4b4b", "大盘出现暴涨暴跌深V形态")
-        with col2: render_macro_metric_card("🧊 横盘锁死 (振幅 ≤ 8)", macro_df['横盘锁死'].sum(), last_row['横盘漏'],
+        with col2: render_macro_metric_card(" 横盘锁死 (振幅 ≤ 8)", macro_df['横盘锁死'].sum(), last_row['横盘漏'],
                                             total_periods, "#4da6ff", "和值停滞，重心与上一期重合")
         st.bar_chart(macro_df.tail(50).set_index('期号')[['绝对振幅']], color="#8a2be2")
 
     st.markdown("---")
-    st.markdown("### 📊 大盘宏观指标 全量正态分布 (钟形曲线)")
+    st.markdown("### 历史全量和值跨度分布图")
     col_dist1, col_dist2 = st.columns(2)
     with col_dist1:
-        st.markdown("#### 🌡️ 历史全量和值 (Sum) 分布")
+        st.markdown("#### 历史全量和值 (Sum) 分布")
         sum_counts = macro_df['和值'].value_counts().reset_index()
         sum_counts.columns = ['和值', '历史发生次数']
         st.bar_chart(sum_counts.sort_values(by='和值').set_index('和值'), color="#ff4b4b")
     with col_dist2:
-        st.markdown("#### 🏹 历史全量跨度 (Span) 分布")
+        st.markdown("#### 历史全量跨度 (Span) 分布")
         span_counts = macro_df['跨度'].value_counts().reset_index()
         span_counts.columns = ['跨度', '历史发生次数']
         st.bar_chart(span_counts.sort_values(by='跨度').set_index('跨度'), color="#4da6ff")
 
     st.markdown("---")
-    st.markdown("### 📋 宏观数据底层明细 (支持检视追踪详情)")
+    st.markdown("### 历史全量和跨数据明细表")
     display_df = macro_df[
-        ['期号', '开奖红球', '和值', '跨度', '绝对振幅', '重心均值', '和奇漏', '和偶漏', '跨奇漏', '跨偶漏', '极震漏',
-         '横盘漏', '联_奇奇漏', '联_奇偶漏', '联_偶奇漏', '联_偶偶漏']].iloc[::-1]
+        ['期号', '开奖红球', '和值', '跨度', '和值振幅', '重心均值', '和奇漏', '和偶漏', '跨奇漏', '跨偶漏', '极震漏',
+         '横盘漏', '联_和跨奇奇漏', '联_和跨奇偶漏', '联_和跨偶奇漏', '联_和跨偶偶漏']].iloc[::-1]
     st_centered_df(display_df, use_container_width=True, hide_index=True, height=500)
 
 
@@ -1910,7 +1910,7 @@ def calculate_ratio_features(df, is_ssq):
 
 
 def render_mod_size_parity(df, is_ssq):
-    st.markdown("### ⚖️ 大盘双轨比值 动态联动控制台")
+    st.markdown("### 大小奇偶比值动态联动解析")
     total_periods = len(df)
 
     if is_ssq:
@@ -1921,10 +1921,10 @@ def render_mod_size_parity(df, is_ssq):
         dom_text = "≥3个同属性球为【主导】，≥4个为【极限】"
 
     st.markdown(
-        f"<div class='def-card'><h4 style='color: #00bcd4; margin-top:0; margin-bottom: 8px;'>📌 架构师物理切分基准（大盘公理）</h4><p style='color:#fff; font-size:1.05em; margin-bottom:4px;'>当前系统对【大小比】的底层切分逻辑执行如下：</p><ul style='color:#bbb; margin-bottom:0;'><li>{def_text}</li><li>系统判定标准：{dom_text}。</li></ul></div>",
+        f"<div class='def-card'><h4 style='color: #00bcd4; margin-top:0; margin-bottom: 8px;'> 大小比值分割基准解读</h4><p style='color:#fff; font-size:1.05em; margin-bottom:4px;'>当前对【大小比】的底层分割逻辑执行如下：</p><ul style='color:#bbb; margin-bottom:0;'><li>{def_text}</li><li>判定标准：{dom_text}。</li></ul></div>",
         unsafe_allow_html=True)
 
-    with st.spinner("正在计算大盘奇偶与大小比值，构筑联动矩阵..."):
+    with st.spinner("正在计算大盘奇偶与大小比值联动矩阵..."):
         ratio_df = calculate_ratio_features(df, is_ssq)
     last_row = ratio_df.iloc[-1]
 
@@ -1938,14 +1938,14 @@ def render_mod_size_parity(df, is_ssq):
                 alerts.append({'name': name, 'gap': current_gap, 'threshold': dynamic_thresh})
         if len(alerts) > 0:
             alert_msgs = "".join([
-                                     f"<li style='margin-bottom: 5px;'>🎯 大盘偏态 <b>{a['name']}</b> 动态极限允许遗漏为 {a['threshold']} 期，现已爆表遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>"
+                                     f"<li style='margin-bottom: 5px;'> 大盘 <b>{a['name']}</b> 极限允许遗漏为 {a['threshold']} 期，现已爆表遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>"
                                      for a in alerts])
             st.markdown(
-                f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0; margin-bottom: 10px;'>🚨 AI 动态波动偏态预警</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 智能战术指导：</b>{recommendation_template}</span></div>",
+                f"<div class='alert-card'><h4 style='color: #ff4b4b; margin-top:0; margin-bottom: 10px;'>遗漏预警提示</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b> 智能建议：</b>{recommendation_template}</span></div>",
                 unsafe_allow_html=True)
         else:
             st.markdown(
-                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'>✅ 本页比值指标未击穿布林带上限</h4><span style='font-size:0.95em; color:#bbb;'>大盘奇偶与大小分布处于近期的常态波动范围内，保持均衡选号即可。</span></div>",
+                f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'> 本页比值未超出数据上限</h4><span style='font-size:0.95em; color:#bbb;'>大盘奇偶与大小分布处于近期的常态波动范围内，保持均衡选号即可。</span></div>",
                 unsafe_allow_html=True)
 
     def render_ratio_metric_card(title, hit_cnt, hit_omit, color, desc=""):
@@ -1954,38 +1954,38 @@ def render_mod_size_parity(df, is_ssq):
             f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘发生:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>",
             unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["🧬 基因轨：奇偶比分析", "🌌 空间轨：大小比分析", "⚔️ 双轨联动：比值四象限矩阵"])
+    tab1, tab2, tab3 = st.tabs([" 奇偶比分析", " 大小比分析", " 大小奇偶比值四特征矩阵"])
 
     with tab1:
         render_ratio_alert([('奇数主导', '奇主漏', '【奇数球占绝对优势】'), ('偶数主导', '偶主漏', '【偶数球占绝对优势】')],
                            ratio_df,
-                           "大盘基因报警！若报警【奇数主导】，请在本期大底中强行剔除 2:4、1:5、0:6 等偶数偏多的废底；反之亦然。顺势而为！")
+                           "大盘报警！若报警【奇数主导】，请在本期大底中剔除 2:4、1:5、0:6 等偶数偏多的废底；反之亦然。顺势而为！")
         colA, colB = st.columns(2)
         with colA:
             render_ratio_metric_card("🟡 奇数主导 (优势区)", ratio_df['奇数主导'].sum(), last_row['奇主漏'], "#f9d71c",
                                      "当期开出奇数球数量过半")
-            render_ratio_metric_card("🔥 极限全奇 (罕见区)", ratio_df['极限全奇'].sum(), last_row['极奇漏'], "#ff4b4b",
+            render_ratio_metric_card(" 极限全奇 (罕见区)", ratio_df['极限全奇'].sum(), last_row['极奇漏'], "#ff4b4b",
                                      "当期几乎或全部为奇数")
         with colB:
             render_ratio_metric_card("🟡 偶数主导 (优势区)", ratio_df['偶数主导'].sum(), last_row['偶主漏'], "#e6b800",
                                      "当期开出偶数球数量过半")
-            render_ratio_metric_card("🔥 极限全偶 (罕见区)", ratio_df['极限全偶'].sum(), last_row['极偶漏'], "#ff4b4b",
+            render_ratio_metric_card(" 极限全偶 (罕见区)", ratio_df['极限全偶'].sum(), last_row['极偶漏'], "#ff4b4b",
                                      "当期几乎或全部为偶数")
 
     with tab2:
         render_ratio_alert([('大号主导', '大主漏', '【大号球占绝对优势】'), ('小号主导', '小主漏', '【小号球占绝对优势】')],
                            ratio_df,
-                           "物理空间报警！若报警【小号主导】，下期重心必将极度左倾，请在龙头附近大量堆积号码；若报警【大号主导】，请将主力资金倾斜至凤尾区域！")
+                           "大小比值报警！若报警【小号主导】，下期重心必将极度左倾，请在龙头附近大量堆积号码；若报警【大号主导】，请将主力资金倾斜至凤尾区域！")
         colA, colB = st.columns(2)
         with colA:
             render_ratio_metric_card("🔵 大号主导 (右偏区)", ratio_df['大号主导'].sum(), last_row['大主漏'], "#4da6ff",
                                      "当期开出大号球数量过半")
-            render_ratio_metric_card("🔥 极限全大 (罕见区)", ratio_df['极限全大'].sum(), last_row['极大漏'], "#ff4b4b",
+            render_ratio_metric_card(" 极限全大 (罕见区)", ratio_df['极限全大'].sum(), last_row['极大漏'], "#ff4b4b",
                                      "当期几乎或全部为大号")
         with colB:
             render_ratio_metric_card("🟢 小号主导 (左偏区)", ratio_df['小号主导'].sum(), last_row['小主漏'], "#00FF7F",
                                      "当期开出小号球数量过半")
-            render_ratio_metric_card("🔥 极限全小 (罕见区)", ratio_df['极限全小'].sum(), last_row['极小漏'], "#ff4b4b",
+            render_ratio_metric_card(" 极限全小 (罕见区)", ratio_df['极限全小'].sum(), last_row['极小漏'], "#ff4b4b",
                                      "当期几乎或全部为小号")
 
     with tab3:
@@ -1993,34 +1993,34 @@ def render_mod_size_parity(df, is_ssq):
                             ('联_奇小', '联_奇小漏', '【奇数主导 + 小号主导】双爆点'),
                             ('联_偶大', '联_偶大漏', '【偶数主导 + 大号主导】双爆点'),
                             ('联_偶小', '联_偶小漏', '【偶数主导 + 小号主导】双爆点')], ratio_df,
-                           "核弹级定胆信号！若某象限报警，说明大盘的基因与空间被同时锁死！例如报警【奇数+大号】，本期极易爆出 23, 25, 27, 29, 31, 33 这样的密集大号奇数组合，直接在核心区包号！")
+                           "定胆信号！若某特征报警，说明大盘的奇偶与大小被同时锁死！例如报警【奇数+大号】，本期极易爆出 23, 25, 27, 29, 31, 33 这样的密集大号奇数组合，直接在核心区包号！")
         col1, col2 = st.columns(2)
         with col1:
-            render_ratio_metric_card("🎯 象限 1：奇数主导 + 大号主导", ratio_df['联_奇大'].sum(), last_row['联_奇大漏'],
+            render_ratio_metric_card(" 特征 1：奇数主导 + 大号主导", ratio_df['联_奇大'].sum(), last_row['联_奇大漏'],
                                      "#e91e63", "锁定范围：右侧腹地的奇数球")
-            render_ratio_metric_card("🎯 象限 3：偶数主导 + 大号主导", ratio_df['联_偶大'].sum(), last_row['联_偶大漏'],
+            render_ratio_metric_card(" 特征 3：偶数主导 + 大号主导", ratio_df['联_偶大'].sum(), last_row['联_偶大漏'],
                                      "#00bcd4", "锁定范围：右侧腹地的偶数球")
         with col2:
-            render_ratio_metric_card("🎯 象限 2：奇数主导 + 小号主导", ratio_df['联_奇小'].sum(), last_row['联_奇小漏'],
+            render_ratio_metric_card(" 特征 2：奇数主导 + 小号主导", ratio_df['联_奇小'].sum(), last_row['联_奇小漏'],
                                      "#9c27b0", "锁定范围：左侧腹地的奇数球")
-            render_ratio_metric_card("🎯 象限 4：偶数主导 + 小号主导", ratio_df['联_偶小'].sum(), last_row['联_偶小漏'],
+            render_ratio_metric_card(" 特征 4：偶数主导 + 小号主导", ratio_df['联_偶小'].sum(), last_row['联_偶小漏'],
                                      "#009688", "锁定范围：左侧腹地的偶数球")
 
     st.markdown("---")
-    st.markdown("### 📈 最近 50 期【奇偶比】与【大小比】分布全景图")
+    st.markdown("###  最近 50 期【奇偶比】与【大小比】分布全景图")
     col_c1, col_c2 = st.columns(2)
     recent_50 = ratio_df.tail(50).set_index('期号')
     with col_c1:
-        st.markdown("#### 🧬 奇偶比例走势 (数量分布)")
-        st.write("💡 *偏离中心线(黄色/橙色)越远，代表奇偶越失衡。*")
+        st.markdown("####  奇偶比例走势 (数量分布)")
+        st.write(" *偏离中心线(黄色/橙色)越远，代表奇偶越失衡。*")
         st.bar_chart(recent_50['奇偶比'].value_counts())
     with col_c2:
-        st.markdown("#### 🌌 大小比例走势 (数量分布)")
-        st.write("💡 *偏离中心线(蓝色/绿色)越远，代表大小重心越偏移。*")
+        st.markdown("####  大小比例走势 (数量分布)")
+        st.write(" *偏离中心线(蓝色/绿色)越远，代表大小重心越偏移。*")
         st.bar_chart(recent_50['大小比'].value_counts())
 
     st.markdown("---")
-    st.markdown("### 📋 宏观数据底层明细 (支持检视追踪详情)")
+    st.markdown("###  历史全量大小与奇偶比值数据明细表")
     display_df = ratio_df[
         ['期号', '开奖红球', '奇偶比', '大小比', '奇主漏', '偶主漏', '极奇漏', '极偶漏', '大主漏', '小主漏', '极大漏',
          '极小漏', '联_奇大漏', '联_奇小漏', '联_偶大漏', '联_偶小漏']].iloc[::-1]
