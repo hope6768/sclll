@@ -589,7 +589,7 @@ def render_mod_prize(df, is_ssq):
         st.markdown(
             f"<div class='warn-card'><b>️ 冷门组合 (该组合奖项：{min_comp}次)</b><br />这些组合奖项虽然中了一等奖，没有带出其他下级奖。</div>",
             unsafe_allow_html=True)
-        st_centered_df(cold_df[['期号', '固定组合特征', '累积奖项数']].iloc[::-1], use_container_width=True,
+        st_centered_df(cold_df[['期号', '固定组合特征', '总伴生奖项数']].iloc[::-1], use_container_width=True,
                        hide_index=True)
     with m2:
         st.markdown(
