@@ -2111,16 +2111,16 @@ def calculate_blue_hc_positioning(df, is_ssq):
         return {'type': 'dlt', 'total': total_draws * 2, 'pos1': pos1_counts, 'pos2': pos2_counts, 'hot': total_b_counts.iloc[:4], 'warm': total_b_counts.iloc[4:8], 'cold': total_b_counts.iloc[8:]}
 
 def render_mod_blue(df_raw, is_ssq):
-    st.markdown("### 🔵 蓝球(后区) 动态极态狙击雷达")
-    st.write("💡 *技术声明：独立隔离后区物理空间。包含【动态冷热聚类】、【后区全维空间定胆】与【2.0 动态布林带预警】！*")
+    st.markdown("### 蓝球(后区)多维定位解析 ")
+    st.write(" *功能解读：解析包含【动态冷热号类】、【后区全维定胆】与【动态预警提示】！*")
 
     total_periods = len(df_raw)
 
     if is_ssq: def_text = "<b>双色球后区 (1~16)：</b>完美对称分布，【小号区】定义为 <b>01 ~ 08</b>；【大号区】定义为 <b>09 ~ 16</b>。"
     else: def_text = "<b>大乐透后区 (1~12)：</b>完美对称分布，【小号区】定义为 <b>01 ~ 06</b>；【大号区】定义为 <b>07 ~ 12</b>。"
-    st.markdown(f"<div class='def-card'><h4 style='color: #00bcd4; margin-top:0; margin-bottom: 8px;'>📌 架构师物理切分基准（后流域公理）</h4><p style='color:#fff; font-size:1.05em; margin-bottom:4px;'>当前系统对蓝球/后区【大小形态】的底层切分逻辑执行如下：</p><ul style='color:#bbb; margin-bottom:0;'><li>{def_text}</li></ul></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='def-card'><h4 style='color: #00bcd4; margin-top:0; margin-bottom: 8px;'> 后区分割定义</h4><p style='color:#fff; font-size:1.05em; margin-bottom:4px;'>蓝球/后区【大小形态】的切分逻辑执行如下：</p><ul style='color:#bbb; margin-bottom:0;'><li>{def_text}</li></ul></div>", unsafe_allow_html=True)
 
-    with st.spinner("正在启动后区专域计算引擎，聚类冷热温号码与独立定位..."):
+    with st.spinner("正在启动后区计算引擎，冷热温号码与独立定位..."):
         blue_df = calculate_blue_features(df_raw, is_ssq)
         hc_stats = calculate_blue_hc_positioning(df_raw, is_ssq)
     last_row = blue_df.iloc[-1]
@@ -2133,14 +2133,14 @@ def render_mod_blue(df_raw, is_ssq):
             dynamic_thresh = calculate_dynamic_threshold(hit_series, window=100)
             if current_gap >= dynamic_thresh: alerts.append({'name': name, 'gap': current_gap, 'threshold': dynamic_thresh})
         if len(alerts) > 0:
-            alert_msgs = "".join([f"<li style='margin-bottom: 5px;'>🎯 <b>{a['name']}</b> 动态极限允许遗漏为 {a['threshold']} 期，现已爆表遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>" for a in alerts])
-            st.markdown(f"<div class='alert-card' style='border-left-color:#00bcd4;'><h4 style='color: #00bcd4; margin-top:0; margin-bottom: 10px;'>🚨 AI 蓝球专属动态预警</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 一击必杀定胆：</b>{recommendation_template}</span></div>", unsafe_allow_html=True)
+            alert_msgs = "".join([f"<li style='margin-bottom: 5px;'> <b>{a['name']}</b> 全量数据允许遗漏为 {a['threshold']} 期，现已爆表遗漏 <b style='color:#ff4b4b; font-size:1.1em;'>{a['gap']}</b> 期！</li>" for a in alerts])
+            st.markdown(f"<div class='alert-card' style='border-left-color:#00bcd4;'><h4 style='color: #00bcd4; margin-top:0; margin-bottom: 10px;'>蓝球预警提示</h4><ul style='margin-bottom: 10px;'>{alert_msgs}</ul><span style='font-size:0.95em; color:#f9d71c;'><b>💡 一击必杀定胆：</b>{recommendation_template}</span></div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'>✅ 本页形态指标未击穿布林带上限</h4><span style='font-size:0.95em; color:#bbb;'>蓝球盘面平稳，无强制反弹信号，顺应近期热号防守即可。</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='safe-card'><h4 style='color: #00FF7F; margin-top:0; margin-bottom: 5px;'> 本页形态指标未达峰值上限</h4><span style='font-size:0.95em; color:#bbb;'>蓝球盘面平稳，无反弹信号，顺应近期热号防守即可。</span></div>", unsafe_allow_html=True)
 
     def render_blue_metric_card(title, hit_cnt, hit_omit, total_p, color, desc=""):
         rate = hit_cnt / total_p if total_p else 0
-        st.markdown(f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘覆盖:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'>⏳ 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='stat-card' style='border-left: 4px solid {color};'><h4 style='color: {color}; margin-bottom: 10px;'>{title}</h4><span style='font-size:0.85em; color:#bbb; display:block; margin-bottom:15px;'>{desc}</span><div style='background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; margin-bottom:8px; text-align:left;'><span style='color:#fff; font-weight:bold;'>🔹 全盘覆盖:</span> 共 <b style='color:#fff'>{hit_cnt}</b> 期 <span style='color:#bbb; font-size:0.9em;'>(占比 {rate:.2%})</span><br /><span style='font-size:0.9em; color:#bbb; display:block; margin-top:4px;'> 当前遗漏: <b style='color:#ff4b4b'>{hit_omit}</b> 期</span></div></div>", unsafe_allow_html=True)
 
     # 👑 架构师绝杀修复：直接在代码内强制写入暗黑科技风 CSS 背景框！
     def render_freq_card(title, series_data, total_hits, color):
@@ -2154,70 +2154,70 @@ def render_mod_blue(df_raw, is_ssq):
         st.markdown(f"<div class='stat-card' style='border-top: 4px solid {color}; text-align:center;'><h4 style='color: {color}; margin-bottom: 5px;'>{title}</h4><p style='color:#bbb; font-size:0.9em; margin-bottom:15px;'>总计命中 <b>{hits}</b> 次 (占该域出号率 <b>{rate:.2%}</b>)</p><div>{nums_html}</div></div>", unsafe_allow_html=True)
 
     if is_ssq:
-        st.markdown("### 🎯 双色球蓝球：单点降维狙击")
-        tab1, tab2, tab3, tab4 = st.tabs(["📍 冷热温聚类", "🧬 奇偶与大小", "🟣 质合与振幅", "📈 蓝球近期波形图"])
+        st.markdown("###  双色球蓝球：多维定点解析")
+        tab1, tab2, tab3, tab4 = st.tabs([" 冷热温聚类", " 奇偶与大小", " 质合与振幅", " 蓝球近期波形图"])
         with tab1:
-            st.markdown("#### 🔥 全盘历史 1~16 蓝球冷热温分类")
-            st.write("💡 *实战法则：大底定胆首选【极热号】保本；想要博取超级大盲盒冷门，在【极冷号】中挑选 1 颗作为刺客防守！*")
+            st.markdown("####  全盘历史 1~16 蓝球冷热温分类")
+            st.write(" *实战法则：大底定胆首选【极热号】保本；防守大盲盒冷门，在【极冷号】中挑选 1 颗作为防守！*")
             c1, c2, c3 = st.columns(3)
-            with c1: render_freq_card("🔥 极热主力号 (Top 5)", hc_stats['hot'], hc_stats['total'], "#ff4b4b")
-            with c2: render_freq_card("🟡 常规温号 (Mid 6)", hc_stats['warm'], hc_stats['total'], "#f9d71c")
-            with c3: render_freq_card("🧊 冰封极冷号 (Bottom 5)", hc_stats['cold'], hc_stats['total'], "#4da6ff")
+            with c1: render_freq_card(" 极热主力号 (Top 5)", hc_stats['hot'], hc_stats['total'], "#ff4b4b")
+            with c2: render_freq_card(" 常规温号 (Mid 6)", hc_stats['warm'], hc_stats['total'], "#f9d71c")
+            with c3: render_freq_card(" 冰封极冷号 (Bottom 5)", hc_stats['cold'], hc_stats['total'], "#4da6ff")
         with tab2:
-            render_blue_alert_dynamic([('奇数', '奇数漏', '【蓝球为奇数】'), ('偶数', '偶数漏', '【蓝球为偶数】'), ('大号', '大号漏', '【蓝球为大号】'), ('小号', '小号漏', '【蓝球为小号】')], blue_df, "蓝球极态报警！若报警大号，定胆范围直接缩减一半！若报警奇数，锁定 1,3,5... 结合【📍冷热温标签页】，在报警范围内优选热号！")
+            render_blue_alert_dynamic([('奇数', '奇数漏', '【蓝球为奇数】'), ('偶数', '偶数漏', '【蓝球为偶数】'), ('大号', '大号漏', '【蓝球为大号】'), ('小号', '小号漏', '【蓝球为小号】')], blue_df, "蓝球极态报警！若报警大号，定胆范围直接缩减一半！若报警奇数，锁定 1,3,5... 结合【冷热温标签页】，在报警范围内优选热号！")
             col1, col2 = st.columns(2)
             with col1:
-                render_blue_metric_card("🟡 蓝球为奇数", blue_df['奇数'].sum(), last_row['奇数漏'], total_periods, "#f9d71c")
-                render_blue_metric_card("🟡 蓝球为偶数", blue_df['偶数'].sum(), last_row['偶数漏'], total_periods, "#e6b800")
+                render_blue_metric_card(" 蓝球为奇数", blue_df['奇数'].sum(), last_row['奇数漏'], total_periods, "#f9d71c")
+                render_blue_metric_card(" 蓝球为偶数", blue_df['偶数'].sum(), last_row['偶数漏'], total_periods, "#e6b800")
             with col2:
-                render_blue_metric_card("🔵 蓝球为大号 (09-16)", blue_df['大号'].sum(), last_row['大号漏'], total_periods, "#4da6ff")
-                render_blue_metric_card("🟢 蓝球为小号 (01-08)", blue_df['小号'].sum(), last_row['小号漏'], total_periods, "#00FF7F")
+                render_blue_metric_card(" 蓝球为大号 (09-16)", blue_df['大号'].sum(), last_row['大号漏'], total_periods, "#4da6ff")
+                render_blue_metric_card(" 蓝球为小号 (01-08)", blue_df['小号'].sum(), last_row['小号漏'], total_periods, "#00FF7F")
         with tab3:
             last_b = last_row['开奖蓝球']
             render_blue_alert_dynamic([('质数', '质数漏', '【蓝球为质数】'), ('大振幅', '大振幅漏', '【蓝球极速跨区(振幅≥8)】'), ('小振幅', '小振幅漏', '【蓝球原地黏连(振幅≤2)】')], blue_df, f"结合上期蓝球({last_b})，若报警大振幅，本期必将飞越半个盘面；若报警小振幅，将在 {last_b} 附近打转！")
             col1, col2 = st.columns(2)
-            with col1: render_blue_metric_card("🟣 蓝球为质数", blue_df['质数'].sum(), last_row['质数漏'], total_periods, "#8a2be2", "2,3,5,7,11,13")
-            with col2: render_blue_metric_card("🌊 蓝球大振幅 (≥8)", blue_df['大振幅'].sum(), last_row['大振幅漏'], total_periods, "#ff4b4b", "走势呈大步长跳跃")
+            with col1: render_blue_metric_card(" 蓝球为质数", blue_df['质数'].sum(), last_row['质数漏'], total_periods, "#8a2be2", "2,3,5,7,11,13")
+            with col2: render_blue_metric_card(" 蓝球大振幅 (≥8)", blue_df['大振幅'].sum(), last_row['大振幅漏'], total_periods, "#ff4b4b", "走势呈大步长跳跃")
         with tab4:
-            st.markdown("#### 📈 最近 50 期蓝球落点分布波形")
+            st.markdown("####  最近 50 期蓝球落点分布图")
             recent_50 = blue_df.tail(50).set_index('期号').copy()
             recent_50['开奖蓝球_num'] = recent_50['开奖蓝球'].astype(int)
             st.line_chart(recent_50[['开奖蓝球_num']], color=["#00bcd4"])
     else:
-        st.markdown("### 🎯 大乐透后区：双星联动与双轨定位")
-        tab1, tab2, tab3, tab4 = st.tabs(["📍 独立定位与冷热分布", "🧬 结构比 (奇偶/大小)", "⚖️ 后区和值与跨度", "📈 后区近期波形图"])
+        st.markdown("###  大乐透后区：多维定点解析")
+        tab1, tab2, tab3, tab4 = st.tabs([" 独立定位与冷热分布", " 结构比 (奇偶/大小)", "⚖ 后区和值与跨度", " 后区近期波形图"])
         with tab1:
-            st.markdown("#### 🎯 后区 第一位(小) 与 第二位(大) 历史最热落点剖析")
-            st.write("💡 *实战法则：大乐透后区呈绝对的左小右大分布！第一位杀大号，第二位杀小号。以下是两星独立位置的 Top 热号！*")
+            st.markdown("####  后区 第一位(小) 与 第二位(大) 历史最热落点解析")
+            st.write("💡 *实战法则：大乐透后区呈左小右大分布！第一位杀大号，第二位杀小号。以下是两号独立位置的热号情况！*")
             p1, p2 = st.columns(2)
-            with p1: render_freq_card("🥇 第一位(小号位) 最热 Top 5", hc_stats['pos1'].iloc[:5], total_periods, "#00bcd4")
-            with p2: render_freq_card("🥈 第二位(大号位) 最热 Top 5", hc_stats['pos2'].iloc[:5], total_periods, "#9c27b0")
+            with p1: render_freq_card(" 第一位(小号位) 最热 Top 5", hc_stats['pos1'].iloc[:5], total_periods, "#00bcd4")
+            with p2: render_freq_card(" 第二位(大号位) 最热 Top 5", hc_stats['pos2'].iloc[:5], total_periods, "#9c27b0")
             st.markdown("---")
-            st.markdown("#### 🔥 后区全量号码 1~12 综合冷热温聚类")
+            st.markdown("####  后区全量号码 1~12 综合冷热温号类")
             c1, c2, c3 = st.columns(3)
-            with c1: render_freq_card("🔥 极热主力号 (Top 4)", hc_stats['hot'], hc_stats['total'], "#ff4b4b")
-            with c2: render_freq_card("🟡 常规温号 (Mid 4)", hc_stats['warm'], hc_stats['total'], "#f9d71c")
-            with c3: render_freq_card("🧊 冰封极冷号 (Bottom 4)", hc_stats['cold'], hc_stats['total'], "#4da6ff")
+            with c1: render_freq_card(" 极热主力号 (Top 4)", hc_stats['hot'], hc_stats['total'], "#ff4b4b")
+            with c2: render_freq_card(" 常规温号 (Mid 4)", hc_stats['warm'], hc_stats['total'], "#f9d71c")
+            with c3: render_freq_card(" 冰封极冷号 (Bottom 4)", hc_stats['cold'], hc_stats['total'], "#4da6ff")
         with tab2:
             render_blue_alert_dynamic([('双奇', '双奇漏', '【后区 全奇数】'), ('双偶', '双偶漏', '【后区 全偶数】'), ('双大', '双大漏', '【后区 全大号】'), ('双小', '双小漏', '【后区 全小号】')], blue_df, "极限结构报警！若报警【双大】，本期后区两枚请全在 07~12 间挑选；若报警【双奇】，请在 01,03,05,07,09,11 中任选！")
             col1, col2 = st.columns(2)
             with col1:
-                render_blue_metric_card("🟡 后区双奇", blue_df['双奇'].sum(), last_row['双奇漏'], total_periods, "#f9d71c")
-                render_blue_metric_card("🟡 后区双偶", blue_df['双偶'].sum(), last_row['双偶漏'], total_periods, "#e6b800")
+                render_blue_metric_card(" 后区双奇", blue_df['双奇'].sum(), last_row['双奇漏'], total_periods, "#f9d71c")
+                render_blue_metric_card(" 后区双偶", blue_df['双偶'].sum(), last_row['双偶漏'], total_periods, "#e6b800")
             with col2:
-                render_blue_metric_card("🔵 后区双大", blue_df['双大'].sum(), last_row['双大漏'], total_periods, "#4da6ff")
-                render_blue_metric_card("🟢 后区双小", blue_df['双小'].sum(), last_row['双小漏'], total_periods, "#00FF7F")
+                render_blue_metric_card(" 后区双大", blue_df['双大'].sum(), last_row['双大漏'], total_periods, "#4da6ff")
+                render_blue_metric_card(" 后区双小", blue_df['双小'].sum(), last_row['双小漏'], total_periods, "#00FF7F")
         with tab3:
             render_blue_alert_dynamic([('和奇', '和奇漏', '【后区和值为奇数】'), ('大跨度', '大跨度漏', '【后区跨度 ≥ 7】'), ('小跨度', '小跨度漏', '【后区跨度 ≤ 2】')], blue_df, "若报警大跨度，说明首尾极端撕裂，选01配10以上冷门！若报警和奇，两球必须一奇一偶！")
             col1, col2 = st.columns(2)
-            with col1: render_blue_metric_card("⚖️ 后区和值为奇数", blue_df['和奇'].sum(), last_row['和奇漏'], total_periods, "#e91e63", "必为【一奇一偶】")
-            with col2: render_blue_metric_card("🌊 后区大跨度 (≥7)", blue_df['大跨度'].sum(), last_row['大跨度漏'], total_periods, "#ff4b4b", "张力极大")
+            with col1: render_blue_metric_card("️ 后区和值为奇数", blue_df['和奇'].sum(), last_row['和奇漏'], total_periods, "#e91e63", "必为【一奇一偶】")
+            with col2: render_blue_metric_card(" 后区大跨度 (≥7)", blue_df['大跨度'].sum(), last_row['大跨度漏'], total_periods, "#ff4b4b", "张力极大")
         with tab4:
-            st.markdown("#### 📈 最近 50 期后区【和值】与【跨度】对比波形")
+            st.markdown("####  最近 50 期后区【和值】与【跨度】对比波形")
             st.line_chart(blue_df.tail(50).set_index('期号')[['后区和值', '后区跨度']])
 
     st.markdown("---")
-    st.markdown("### 📋 蓝区数据底层明细 (支持检视追踪详情)")
+    st.markdown("###  历史全量蓝区数据明细表")
     if is_ssq: d_cols = ['期号', '开奖蓝球', '蓝球振幅', '奇数漏', '偶数漏', '大号漏', '小号漏', '大振幅漏', '小振幅漏']
     else: d_cols = ['期号', '开奖蓝球', '后区和值', '后区跨度', '双奇漏', '双偶漏', '双大漏', '双小漏', '大跨度漏', '小跨度漏']
     st_centered_df(blue_df[d_cols].iloc[::-1], use_container_width=True, hide_index=True, height=500)
@@ -2245,7 +2245,7 @@ def main():
             unsafe_allow_html=True)
         c1, c_space, c2 = st.columns([4, 0.5, 4])
         with c1:
-            st.markdown("<h3 style='text-align:center; color:#ff4b4b;'>🔴 大乐透</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align:center; color:#ff4b4b;'> 大乐透</h3>", unsafe_allow_html=True)
             res_dlt = get_latest_result("大乐透")
             if res_dlt:
                 r_html = "".join([f"<span class='red-ball'>{r:02d}</span>" for r in res_dlt['reds'][:5]])
@@ -2256,7 +2256,7 @@ def main():
             else:
                 st.info("请在目录放置 大乐透.xlsx")
         with c2:
-            st.markdown("<h3 style='text-align:center; color:#00bcd4;'>🔵 双色球</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align:center; color:#00bcd4;'> 双色球</h3>", unsafe_allow_html=True)
             res_ssq = get_latest_result("双色球")
             if res_ssq:
                 r_html = "".join([f"<span class='red-ball'>{r:02d}</span>" for r in res_ssq['reds'][:6]])
