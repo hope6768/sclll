@@ -1610,7 +1610,7 @@ def render_mod_zone(df, is_ssq):
             f"#### 决定大盘重心的交界号：<span class='highlight'>[{'、'.join([str(x) for x in all_anchors])}]</span>",
             unsafe_allow_html=True)
 
-        last_hit = last_row['触碰交界锚点']
+        last_hit = last_row['触碰边界锚点']
         if last_hit != "-":
             hit_nums = [int(x) for x in last_hit.split()]
             hit_1_2 = [x for x in hit_nums if x in a12]
