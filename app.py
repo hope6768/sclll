@@ -22,7 +22,7 @@ if 'bs_set' not in st.session_state: st.session_state.bs_set = set(range(1, 17))
 if 'b_method' not in st.session_state: st.session_state.b_method = "循环使用"
 
 # ==========================================
-# 🎨 2. 全局 UI 样式
+# 🎨 2. 全局 UI 样式 (自适应白天/黑夜主题版)
 # ==========================================
 st.markdown("""
     <style>
@@ -30,32 +30,38 @@ st.markdown("""
     ::-webkit-scrollbar {width: 6px; height: 6px;}
     ::-webkit-scrollbar-thumb {background: #00bcd4; border-radius: 3px;}
 
+    /* 顶部导航栏自适应文字颜色 */
     div[role="radiogroup"] label[data-baseweb="radio"] > div:first-child { display: none !important; }
     div[role="radiogroup"] { flex-direction: row; flex-wrap: wrap; gap: 15px; margin-bottom: 5px;}
-    div[role="radiogroup"] label[data-baseweb="radio"] p { font-size: 16px; color: #888; margin: 0; padding: 5px 0px; cursor: pointer; transition: 0.2s; }
-    div[role="radiogroup"] label[data-baseweb="radio"]:hover p { color: #ccc; }
-    div[role="radiogroup"] label[data-baseweb="radio"] input:checked + div p { font-size: 22px !important; font-weight: 900 !important; color: #fff !important; }
+    div[role="radiogroup"] label[data-baseweb="radio"] p { font-size: 16px; color: var(--text-color); opacity: 0.7; margin: 0; padding: 5px 0px; cursor: pointer; transition: 0.2s; }
+    div[role="radiogroup"] label[data-baseweb="radio"]:hover p { opacity: 1; }
+    div[role="radiogroup"] label[data-baseweb="radio"] input:checked + div p { font-size: 22px !important; font-weight: 900 !important; color: #00bcd4 !important; opacity: 1; }
 
     .analysis-frame { border: 2px solid #00FF7F; border-radius: 2px; padding: 30px; min-height: 60vh; margin-top: 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
     .red-ball { background: #ff4b4b; color: white; border-radius: 50%; padding: 8px 12px; margin: 3px; display: inline-block; font-weight: bold;}
     .blue-ball { background: #00bcd4; color: white; border-radius: 50%; padding: 8px 12px; margin: 3px; display: inline-block; font-weight: bold;}
-    .home-card { background: #1e2129; padding: 20px; border-radius: 8px; text-align: center; margin-top: 20px;}
 
-    .stat-card { background-color: #1e2129; padding: 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 15px; text-align:center;}
-    .alert-card { border-left: 5px solid #ff4b4b; background-color: #2b1c1c; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
-    .safe-card { border-left: 5px solid #00FF7F; background-color: #1a2b22; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
-    .bayesian-card { border-left: 5px solid #8a2be2; background-color: #1a1525; padding: 15px; border-radius: 8px; margin-bottom: 20px;}
-    .warn-card { border-left: 5px solid #ff4b4b; background-color: #2b1c1c; padding: 15px; border-radius: 4px; margin-bottom: 10px;}
-    .warn-card-green { border-left: 5px solid #00FF7F; background-color: #1a2b22; padding: 15px; border-radius: 4px; margin-bottom: 10px;}
-    .def-card { border-left: 5px solid #00bcd4; background-color: #162436; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00bcd4;}
+    /* 核心卡片背景：全部替换为系统级变量 var(--secondary-background-color) */
+    .home-card { background: var(--secondary-background-color); padding: 20px; border-radius: 8px; text-align: center; margin-top: 20px; border: 1px solid rgba(128,128,128,0.2);}
+    .stat-card { background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); margin-bottom: 15px; text-align:center;}
 
+    /* 预警类卡片：保留左侧的高亮边框，背景底色自动随系统切换 */
+    .alert-card { border-left: 5px solid #ff4b4b; background-color: var(--secondary-background-color); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+    .safe-card { border-left: 5px solid #00FF7F; background-color: var(--secondary-background-color); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+    .bayesian-card { border-left: 5px solid #8a2be2; background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+    .warn-card { border-left: 5px solid #ff4b4b; background-color: var(--secondary-background-color); padding: 15px; border-radius: 4px; margin-bottom: 10px;}
+    .warn-card-green { border-left: 5px solid #00FF7F; background-color: var(--secondary-background-color); padding: 15px; border-radius: 4px; margin-bottom: 10px;}
+    .def-card { border-left: 5px solid #00bcd4; background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00bcd4;}
+
+    /* 历史数据冷热球颜色 (这些是实心球，保持原本颜色最醒目) */
     .num-ball-hot { display:inline-block; width:30px; height:30px; border-radius:50%; background-color:#ff4b4b; color:white; text-align:center; line-height:30px; margin:2px; font-weight:bold;}
     .num-ball-warm { display:inline-block; width:30px; height:30px; border-radius:50%; background-color:#f9d71c; color:#333; text-align:center; line-height:30px; margin:2px; font-weight:bold;}
     .num-ball-cold { display:inline-block; width:30px; height:30px; border-radius:50%; background-color:#1c83e1; color:white; text-align:center; line-height:30px; margin:2px; font-weight:bold;}
 
-    .filter-box { background: #16181d; border: 1px solid #334; border-top: 3px solid #00bcd4; border-radius: 6px; padding: 15px; margin-bottom: 15px; height: 140px;}
-    .filter-box-title { color: #00bcd4; font-size: 1.05em; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #334; padding-bottom: 5px;}
-    .cart-item { background: rgba(255,255,255,0.05); padding: 8px 12px; border-left: 3px solid #00bcd4; margin-bottom: 8px; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center;}
+    /* 控制面板与购物车自适应 */
+    .filter-box { background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.2); border-top: 3px solid #00bcd4; border-radius: 6px; padding: 15px; margin-bottom: 15px; height: 140px;}
+    .filter-box-title { color: #00bcd4; font-size: 1.05em; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid rgba(128,128,128,0.2); padding-bottom: 5px;}
+    .cart-item { background: var(--secondary-background-color); padding: 8px 12px; border-left: 3px solid #00bcd4; margin-bottom: 8px; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(128,128,128,0.2);}
 
     div[data-testid="stDialog"] div[data-testid="column"] { padding: 0 2px; }
     div[data-testid="stDialog"] button[kind="secondary"], div[data-testid="stDialog"] button[kind="primary"] { border-radius: 20px; height: 38px; }
