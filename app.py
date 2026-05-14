@@ -2221,7 +2221,63 @@ def render_mod_blue(df_raw, is_ssq):
         with tab4:
             st.markdown("####  最近 50 期后区【和值】与【跨度】对比波形")
             st.line_chart(blue_df.tail(50).set_index('期号')[['后区和值', '后区跨度']])
+        # ================= 新增：双彩种通用看板（⚠️这行必须和上面的 if is_ssq 对齐！）=================
 
+    st.markdown("---")
+    st.markdown(f"### 📊 {'双色球' if is_ssq else '大乐透'}蓝区核心看板 (频次、百分比与冷热明细)")
+
+    status_dict = {}
+    if hc_stats:
+        for b in hc_stats['hot'].index: status_dict[f"{int(b):02d}"] = "🔥 热"
+        for b in hc_stats['warm'].index: status_dict[f"{int(b):02d}"] = "☀️ 温"
+        for b in hc_stats['cold'].index: status_dict[f"{int(b):02d}"] = "❄️ 冷"
+
+    total_draws = len(df_raw)
+
+    if is_ssq:
+        counts = df_raw['b1'].astype(int).value_counts().reindex(range(1, 17), fill_value=0)
+        stat_df = pd.DataFrame({
+            "蓝号": [f"{i:02d}" for i in counts.index],
+            "出现次数": counts.values,
+            "百分比": [f"{(v / total_draws) * 100:.1f}%" if total_draws > 0 else "0.0%" for v in counts.values]
+        }).sort_values(by="出现次数", ascending=False)
+    else:
+        c1, c2 = hc_stats['pos1'], hc_stats['pos2']
+        stat_df = pd.DataFrame({
+            "蓝号": [f"{i:02d}" for i in range(1, 13)],
+            "蓝一命中": [int(c1.get(i, 0)) for i in range(1, 13)],
+            "蓝一总占比": [f"{(c1.get(i, 0) / total_draws) * 100:.1f}%" if total_draws > 0 else "0.0%" for i in
+                          range(1, 13)],
+            "蓝二命中": [int(c2.get(i, 0)) for i in range(1, 13)],
+            "蓝二总占比": [f"{(c2.get(i, 0) / total_draws) * 100:.1f}%" if total_draws > 0 else "0.0%" for i in
+                          range(1, 13)]
+        }).sort_values(by=["蓝一命中", "蓝二命中"], ascending=False)
+
+    last_50 = df_raw.tail(50).iloc[::-1]
+    detail_rows = []
+    for _, r in last_50.iterrows():
+        qn = str(int(r['期号']))
+        if is_ssq:
+            val = f"{int(r['b1']):02d}"
+            detail_rows.append({"期号": qn, "开出蓝号": val, "冷热状态": status_dict.get(val, "☀️ 温")})
+        else:
+            v1, v2 = f"{int(r['b1']):02d}", f"{int(r['b2']):02d}"
+            s1, s2 = status_dict.get(v1, "☀️"), status_dict.get(v2, "☀️")
+            detail_rows.append({"期号": qn, "开出蓝号": f"{v1} {v2}", "冷热状态": f"{s1} | {s2}"})
+    detail_df = pd.DataFrame(detail_rows)
+
+    c_left, c_right = st.columns([1.6, 1])
+    with c_left:
+        st.markdown(
+            "<div style='font-size:12px; margin-bottom:5px; opacity:0.7; color:#00bcd4;'> 历史频次排行 (含百分比)</div>",
+            unsafe_allow_html=True)
+        st.dataframe(stat_df, height=400, use_container_width=True, hide_index=True)
+    with c_right:
+        st.markdown(
+            "<div style='font-size:12px; margin-bottom:5px; opacity:0.7; color:#00bcd4;'> 最近 50 期冷热明细</div>",
+            unsafe_allow_html=True)
+        st.dataframe(detail_df, height=400, use_container_width=True, hide_index=True)
+        # =================================================================================
     st.markdown("---")
     st.markdown("###  历史全量蓝区数据明细表")
     if is_ssq: d_cols = ['期号', '开奖蓝球', '蓝球振幅', '奇数漏', '偶数漏', '大号漏', '小号漏', '大振幅漏', '小振幅漏']
