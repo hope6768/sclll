@@ -976,18 +976,18 @@ def render_mod_repeat(df, is_ssq):
                    hide_index=True, height=400)
 
 
-# 🔥 模块 6：冷热温号
+# 模块 6：冷热温号
 def render_mod_hot_cold(df, is_ssq):
-    st.markdown("### ️ 冷热温号分析自定义选择")
+    st.markdown("### 冷热温号分析自定义选择")
     c_m, c_s = st.columns([1, 2])
-    mode = c_m.radio("选择测算范围：", [" 选择需要分析的区间 ", " 全量历史冷热温号数据分析 "],
-                     horizontal=True)
+    mode = c_m.radio("选择测算范围：", ["选择需要分析的区间", "全量历史冷热温号数据分析"], horizontal=True)
 
-    if "自定义" in mode:
+    # 修复单选框识别不到的 bug
+    if "选择" in mode:
         window = c_s.slider("滑动选择最近 N 期：", min_value=30, max_value=min(len(df), 500), value=100, step=10)
     else:
         window = len(df)
-        c_s.info(f" 已开启全盘扫描：系统将对全部 **{len(df)}** 期历史数据进行冷热温号分析。")
+        c_s.info(f"已开启全盘扫描：系统将对全部 **{len(df)}** 期历史数据进行冷热温号分析。")
 
     r_cols = [f'r{i + 1}' for i in range(6 if is_ssq else 5)]
     recent_df = df.tail(window).reset_index(drop=True)
@@ -1008,13 +1008,16 @@ def render_mod_hot_cold(df, is_ssq):
 
     temp_df = temp_df.sort_values('频次', ascending=False).reset_index(drop=True)
     hot_c, cold_c = int(red_max * 0.3), int(red_max * 0.3)
-    temp_df['标签'] = '️ 温号'
-    temp_df.loc[:hot_c - 1, '标签'] = ' 热号'
-    temp_df.loc[red_max - cold_c:, '标签'] = ' 冷号'
+    
+    # 核心修复区：使用纯净的中文字符进行标签划分
+    temp_df['标签'] = '温号'
+    temp_df.loc[:hot_c - 1, '标签'] = '热号'
+    temp_df.loc[red_max - cold_c:, '标签'] = '冷号'
 
-    hot_set = set(temp_df[temp_df['标签'] == ' 热号']['号码'].astype(int))
-    warm_set = set(temp_df[temp_df['标签'] == ' 温号']['号码'].astype(int))
-    cold_set = set(temp_df[temp_df['标签'] == ' 冷号']['号码'].astype(int))
+    # 精确匹配，解决温号统计为空的BUG
+    hot_set = set(temp_df[temp_df['标签'] == '热号']['号码'].astype(int))
+    warm_set = set(temp_df[temp_df['标签'] == '温号']['号码'].astype(int))
+    cold_set = set(temp_df[temp_df['标签'] == '冷号']['号码'].astype(int))
 
     ratio_data = []
     for _, row in recent_df.iterrows():
@@ -1027,7 +1030,7 @@ def render_mod_hot_cold(df, is_ssq):
     ratio_df = pd.DataFrame(ratio_data)
 
     st.markdown("### 预警提示")
-    hot_df = temp_df[temp_df['标签'] == ' 热号'].copy()
+    hot_df = temp_df[temp_df['标签'] == '热号'].copy()
     hot_df['警戒阈值'] = (window / (hot_df['频次'] + 1)) * 2.5
     volcanoes = hot_df[hot_df['当前遗漏'] > hot_df['警戒阈值']]
 
@@ -1036,41 +1039,40 @@ def render_mod_hot_cold(df, is_ssq):
         num_str = "、".join([f"[{n}]" for n in volcano_nums])
         st.markdown(f"""
         <div class='alert-card'>
-            <h3 style='color: #ff4b4b; margin-top:0;'>️ 警报：检测到热号，极易井喷！</h3>
+            <h3 style='color: #ff4b4b; margin-top:0;'>警报：检测到热号，极易井喷！</h3>
             <p style='font-size:1.1em;'>当前跨度内极度活跃的热号 <b>{num_str}</b>，目前的遗漏期数已严重超过其理论值范围！</p>
             <p>它们在过去的 {window} 期内属于绝对热点，但近期处于断档。目前处于随时爆发的临界点！</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#f9d71c;'> 本期定胆推荐：</h4>
+            <h4 style='color:#f9d71c;'>本期定胆推荐：</h4>
             <p>本期在配置过滤大底或定胆时，建议将 <b>{num_str}</b> 纳入重号定胆库。以博取均值回归的利润！</p>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div class='safe-card'>
-            <h3 style='color: #00FF7F; margin-top:0;'> 提示：大盘温度号码稳定，无极端热号</h3>
+            <h3 style='color: #00FF7F; margin-top:0;'>提示：大盘温度号码稳定，无极端热号</h3>
             <p style='font-size:1.1em;'>当前所有的【热号】都在正常的活跃期内滚动开出，没有发现被严重遗漏的号码。</p>
             <hr style='border-color:#555;'>
-            <h4 style='color:#00FF7F;'> 常规防守推荐：</h4>
+            <h4 style='color:#00FF7F;'>常规防守推荐：</h4>
             <p>本期大盘无明显重号定胆信号。请参考下方的<b>冷热温结构比</b>配置常规缩水大底即可。</p>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown(f"### ️ 一、 历史 ({window}期) 号码分级池")
+    st.markdown(f"### 一、 历史 ({window}期) 号码分级池")
     c1, c2, c3 = st.columns(3)
-    c1.markdown("<h4> 热号池 (Top 30%)</h4>" + "".join(
-        [f"<span class='num-ball-hot'>{x}</span>" for x in temp_df[temp_df['标签'] == ' 热号']['号码']]),
+    c1.markdown("<h4>热号池 (Top 30%)</h4>" + "".join(
+        [f"<span class='num-ball-hot'>{x}</span>" for x in temp_df[temp_df['标签'] == '热号']['号码']]),
                 unsafe_allow_html=True)
-    c2.markdown("<h4>️ 温号池 (Middle 40%)</h4>" + "".join(
-        [f"<span class='num-ball-warm'>{x}</span>" for x in temp_df[temp_df['标签'] == '️ 温号']['号码']]),
+    c2.markdown("<h4>温号池 (Middle 40%)</h4>" + "".join(
+        [f"<span class='num-ball-warm'>{x}</span>" for x in temp_df[temp_df['标签'] == '温号']['号码']]),
                 unsafe_allow_html=True)
-    c3.markdown("<h4>️ 冷号池 (Bottom 30%)</h4>" + "".join(
-        [f"<span class='num-ball-cold'>{x}</span>" for x in temp_df[temp_df['标签'] == ' 冷号']['号码']]),
+    c3.markdown("<h4>冷号池 (Bottom 30%)</h4>" + "".join(
+        [f"<span class='num-ball-cold'>{x}</span>" for x in temp_df[temp_df['标签'] == '冷号']['号码']]),
                 unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown(f"###  二、 “冷热温”结构比与近期波形分析")
-    st.write(
-        " *图表说明：横向柱子总高度固定（代表开奖总球数）。色块大小代表该期开出了几个热/温/冷号。*")
+    st.markdown(f"### 二、 “冷热温”结构比与近期波形分析")
+    st.write(" *图表说明：横向柱子总高度固定（代表开奖总球数）。色块大小代表该期开出了几个热/温/冷号。*")
 
     L2, R2 = st.columns([1, 2])
     with L2:
@@ -1078,15 +1080,15 @@ def render_mod_hot_cold(df, is_ssq):
         ratio_stats.columns = ['冷热温结构比 (热:温:冷)', '发生期数']
         ratio_stats['概率占比'] = (ratio_stats['发生期数'] / window).map('{:.2%}'.format)
 
-        st.markdown(f"** 基于 {window} 期的结构分布排行榜**")
+        st.markdown(f"**基于 {window} 期的结构分布排行榜**")
         st_centered_df(ratio_stats, use_container_width=True, hide_index=True)
 
         top1_ratio = ratio_stats.iloc[0]['冷热温结构比 (热:温:冷)']
         st.info(
-            f"** 过滤定胆建议：**\n\n在当前跨度中，最常规的组号比例是 **{top1_ratio}**。配号时，请参考这一梯队比例分配号码！")
+            f"**过滤定胆建议：**\n\n在当前跨度中，最常规的组号比例是 **{top1_ratio}**。配号时，请参考这一梯队比例分配号码！")
 
     with R2:
-        st.markdown("** 最近 50 期冷热温结构堆叠图**")
+        st.markdown("**最近 50 期冷热温结构堆叠图**")
         trend_ratio_df = ratio_df.tail(50).set_index('期号')[['热号数', '温号数', '冷号数']]
         st.bar_chart(trend_ratio_df, color=["#ff4b4b", "#f9d71c", "#1c83e1"])
 
