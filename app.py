@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 import os
 import itertools
-
+import re
+from itertools import product, combinations
 
 # ==========================================
 # ⚙️ 1. 全局配置与状态初始化
@@ -11,8 +12,28 @@ import itertools
 st.set_page_config(page_title="LottoTech 智能量化终端", layout="wide")
 
 if 'main_nav' not in st.session_state: st.session_state.main_nav = '首页'
+# --- 🌟 新增：用户管理与社区群聊专属状态机 ---
+if 'users_db' not in st.session_state: st.session_state.users_db = {"admin": "admin123", "test": "123456"} # 预设两个测试账号
+if 'current_user' not in st.session_state: st.session_state.current_user = None  # None 代表未登录
+if 'login_mode' not in st.session_state: st.session_state.login_mode = "登录"     # 登录 或 注册
+if 'chat_messages' not in st.session_state: st.session_state.chat_messages = [
+    {"user": "系统助手", "time": "11:00", "text": "欢迎来到 LottoTech 智能量化终端群聊大厅！"}
+] # 预设初始群聊消息
+# --- 🌟 社区化升级：用户特权中心与多模态群聊大厅状态机 ---
+if 'users_data' not in st.session_state:
+    st.session_state.users_data = {
+        "admin": {"pwd": "admin123", "nick": "量化统帅", "avatar": "🦖", "bio": "顺势而为，极致缩水。"},
+        "test": {"pwd": "123456", "nick": "彩界黑马", "avatar": "⚡", "bio": "专注AC值偏态拦截。"}
+    }
+if 'current_user' not in st.session_state: st.session_state.current_user = None # None代表游客状态
+if 'chat_pool' not in st.session_state:
+    st.session_state.chat_pool = [
+        {"user": "系统助手", "nick": "LottoTech管家", "avatar": "🤖", "time": "11:00", "type": "text", "content": "欢迎来到沟通大厅！本大厅支持高频图文互动，晒单交流请遵守社区规范。"}
+    ]
 if 'sub_nav' not in st.session_state: st.session_state.sub_nav = '红球定位'
 if 'lottery_type' not in st.session_state: st.session_state.lottery_type = '大乐透'
+if 'active_top_tab' not in st.session_state: st.session_state.active_top_tab = "大乐透"
+if 'active_stats_pos' not in st.session_state: st.session_state.active_stats_pos = 1
 if 'filter_conditions' not in st.session_state: st.session_state.filter_conditions = []
 if 'show_results' not in st.session_state: st.session_state.show_results = False
 
@@ -20,9 +41,28 @@ if 'b1_set' not in st.session_state: st.session_state.b1_set = set(range(1, 12))
 if 'b2_set' not in st.session_state: st.session_state.b2_set = set(range(2, 13))
 if 'bs_set' not in st.session_state: st.session_state.bs_set = set(range(1, 17))
 if 'b_method' not in st.session_state: st.session_state.b_method = "循环使用"
+# --- 以下为过滤引擎专属状态变量 ---
+if 'selected_reds_dlt' not in st.session_state: st.session_state.selected_reds_dlt = []
+if 'selected_reds_ssq' not in st.session_state: st.session_state.selected_reds_ssq = []
+if 'dlt_b1' not in st.session_state: st.session_state.dlt_b1 = []
+if 'dlt_b2' not in st.session_state: st.session_state.dlt_b2 = []
+if 'ssq_b' not in st.session_state: st.session_state.ssq_b = []
+if 'filtered_df' not in st.session_state: st.session_state.filtered_df = pd.DataFrame()
 
+# 分页系统状态
+if 'current_page' not in st.session_state: st.session_state.current_page = 1
+if 'page_input' not in st.session_state: st.session_state.page_input = 1
+if 'active_stats_pos' not in st.session_state: st.session_state.active_stats_pos = 1
+if 'temp_sets' not in st.session_state: st.session_state.temp_sets = {}
+
+for i in range(1, 7):
+    if f'tail_{i}' not in st.session_state: st.session_state[f'tail_{i}'] = []
+
+# 用于计算振幅的上一期开奖号（后续可改为自动读取，暂且保留）
+PREV_DLT = [1, 15, 21, 26, 33]
+PREV_SSQ = [7, 16, 21, 24, 27, 30]
 # ==========================================
-# 🎨 2. 全局 UI 样式 (自适应白天/黑夜主题版)
+# 🎨 2. 全局 UI 样式 (自适应白天/黑夜主题版) + 过滤工具专属魔法
 # ==========================================
 st.markdown("""
     <style>
@@ -41,11 +81,11 @@ st.markdown("""
     .red-ball { background: #ff4b4b; color: white; border-radius: 50%; padding: 8px 12px; margin: 3px; display: inline-block; font-weight: bold;}
     .blue-ball { background: #00bcd4; color: white; border-radius: 50%; padding: 8px 12px; margin: 3px; display: inline-block; font-weight: bold;}
 
-    /* 核心卡片背景：全部替换为系统级变量 var(--secondary-background-color) */
+    /* 核心卡片背景 */
     .home-card { background: var(--secondary-background-color); padding: 20px; border-radius: 8px; text-align: center; margin-top: 20px; border: 1px solid rgba(128,128,128,0.2);}
     .stat-card { background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); margin-bottom: 15px; text-align:center;}
 
-    /* 预警类卡片：保留左侧的高亮边框，背景底色自动随系统切换 */
+    /* 预警类卡片 */
     .alert-card { border-left: 5px solid #ff4b4b; background-color: var(--secondary-background-color); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
     .safe-card { border-left: 5px solid #00FF7F; background-color: var(--secondary-background-color); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
     .bayesian-card { border-left: 5px solid #8a2be2; background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
@@ -53,7 +93,7 @@ st.markdown("""
     .warn-card-green { border-left: 5px solid #00FF7F; background-color: var(--secondary-background-color); padding: 15px; border-radius: 4px; margin-bottom: 10px;}
     .def-card { border-left: 5px solid #00bcd4; background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00bcd4;}
 
-    /* 历史数据冷热球颜色 (这些是实心球，保持原本颜色最醒目) */
+    /* 历史数据冷热球颜色 */
     .num-ball-hot { display:inline-block; width:30px; height:30px; border-radius:50%; background-color:#ff4b4b; color:white; text-align:center; line-height:30px; margin:2px; font-weight:bold;}
     .num-ball-warm { display:inline-block; width:30px; height:30px; border-radius:50%; background-color:#f9d71c; color:#333; text-align:center; line-height:30px; margin:2px; font-weight:bold;}
     .num-ball-cold { display:inline-block; width:30px; height:30px; border-radius:50%; background-color:#1c83e1; color:white; text-align:center; line-height:30px; margin:2px; font-weight:bold;}
@@ -65,6 +105,72 @@ st.markdown("""
 
     div[data-testid="stDialog"] div[data-testid="column"] { padding: 0 2px; }
     div[data-testid="stDialog"] button[kind="secondary"], div[data-testid="stDialog"] button[kind="primary"] { border-radius: 20px; height: 38px; }
+
+    /* ========================================================== */
+    /* 🔴 以下为过滤缩水工具专属 CSS 魔法（球体、模块按钮、防竖排） */
+    /* ========================================================== */
+    div.element-container:has(.is-ball) + div.element-container div[data-testid="stButton"] button {
+        width: 38px !important; height: 38px !important; min-height: 38px !important; border-radius: 50% !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto !important;
+    }
+    div.element-container:has(.is-ball) + div.element-container div[data-testid="stButton"] button p { white-space: nowrap !important; font-size: 17px !important; font-weight: bold !important; margin: 0 !important; display: inline !important; }
+
+    div.element-container:has(.is-ball-active) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, #ff5b5b 0%, #d32f2f 50%, #9a0000 100%) !important; color: white !important; border: none !important; box-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important; }
+    div.element-container:has(.is-blue-ball-active) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, #5bb2ff 0%, #0073e6 50%, #003b80 100%) !important; color: white !important; border: none !important; box-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important; }
+
+    div.element-container:has(.is-ball-inactive) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, var(--background-color) 0%, var(--secondary-background-color) 100%) !important; color: #d32f2f !important; border: 1px solid rgba(128,128,128,0.3) !important; box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important; }
+    div.element-container:has(.is-blue-ball-inactive) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, var(--background-color) 0%, var(--secondary-background-color) 100%) !important; color: #0073e6 !important; border: 1px solid rgba(128,128,128,0.3) !important; box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important; }
+
+    div.element-container:has(.is-blue-ball) + div.element-container div[data-testid="stButton"] button {
+        width: 32px !important; height: 32px !important; min-height: 32px !important; border-radius: 50% !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto !important;
+    }
+    div.element-container:has(.is-blue-ball) + div.element-container div[data-testid="stButton"] button p { white-space: nowrap !important; font-size: 15px !important; font-weight: bold !important; margin: 0 !important; }
+
+    div.element-container:has(.is-rect-btn) + div.element-container div[data-testid="stButton"] button { width: 100% !important; height: 30px !important; min-height: 30px !important; border-radius: 4px !important; padding: 0 4px !important; box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important; margin: 0 auto !important; }
+    div.element-container:has(.is-rect-btn) + div.element-container div[data-testid="stButton"] button p { font-size: 13px !important; white-space: nowrap !important; margin: 0 !important;}
+    div.element-container:has(.is-rect-btn-active) + div.element-container div[data-testid="stButton"] button { background: #d32f2f !important; color: white !important; border: 1px solid #b71c1c !important; }
+    div.element-container:has(.is-rect-btn-inactive) + div.element-container div[data-testid="stButton"] button { background: var(--background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128,128,128,0.3) !important; }
+
+    div.element-container:has(.is-module-btn) + div.element-container div[data-testid="stButton"] button { width: 100% !important; height: 45px !important; min-height: 45px !important; border-radius: 6px !important; background: var(--secondary-background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128,128,128,0.3) !important; font-weight: bold !important; font-size: 16px !important;}
+    div.element-container:has(.is-module-btn) + div.element-container div[data-testid="stButton"] button:hover { border-color: #00bcd4 !important; color: #00bcd4 !important;}
+
+    div.element-container:has(.is-mini-btn) + div.element-container div[data-testid="stButton"] button { width: 100% !important; height: 30px !important; min-height: 30px !important; border-radius: 4px !important; padding: 0 !important; font-size: 13px !important; background: var(--background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128,128,128,0.3) !important; }
+    div.element-container:has(.is-tool-btn) + div.element-container div[data-testid="stButton"] button { padding: 0 !important; height: 34px !important; min-height: 34px !important; }
+    div.element-container:has(.is-tool-btn) + div.element-container div[data-testid="stButton"] button p { font-size: 13px !important; white-space: nowrap !important; margin: 0 !important; }
+
+    /* 🚀 终极地毯式防御：无视 Streamlit 版本标签名变化，强杀竖排！ */
+    div[data-testid="stHorizontalBlock"]:has(.anti-vertical) {
+        display: flex !important;
+        flex-direction: row !important; 
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding-bottom: 8px !important; 
+        align-items: center !important;
+        width: 100% !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.anti-vertical) > div {
+        display: flex !important;
+        flex-direction: row !important;
+        width: auto !important;          
+        flex: 0 0 auto !important;       
+        min-width: max-content !important; 
+        padding: 0 3px !important;
+    }
+
+    .anti-vertical {
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        margin: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.anti-vertical) div[data-testid="stNumberInput"] {
+        width: 60px !important;
+        min-width: 60px !important;
+        flex: none !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -1008,7 +1114,7 @@ def render_mod_hot_cold(df, is_ssq):
 
     temp_df = temp_df.sort_values('频次', ascending=False).reset_index(drop=True)
     hot_c, cold_c = int(red_max * 0.3), int(red_max * 0.3)
-    
+
     # 核心修复区：使用纯净的中文字符进行标签划分
     temp_df['标签'] = '温号'
     temp_df.loc[:hot_c - 1, '标签'] = '热号'
@@ -2290,15 +2396,1794 @@ def render_mod_blue(df_raw, is_ssq):
 # ==========================================
 # 🚀 核心路由与主干呈现逻辑 (防崩溃安全版)
 # ==========================================
-def main():
-    main_options = ['首页', '大乐透', '双色球', '过滤缩水工具']
-    # 依靠 st.radio 自身的刷新机制，绝对不要加 st.rerun()
-    selected_main = st.radio("主导航", main_options, index=main_options.index(st.session_state.main_nav),
-                             horizontal=True, label_visibility="collapsed")
+# ==========================================
+# 🧮 5. 过滤引擎核心算法与弹窗组件
+# ==========================================
+def generate_real_combinations(is_ssq):
+    red_max = 33 if is_ssq else 35
+    red_count = 6 if is_ssq else 5
+    sel_reds = st.session_state.selected_reds_ssq if is_ssq else st.session_state.selected_reds_dlt
+    pool = sorted([int(x) for x in sel_reds]) if sel_reds else list(range(1, red_max + 1))
+    if len(pool) < red_count: return pd.DataFrame()
+    red_combos = list(combinations(pool, red_count))
+    return pd.DataFrame(red_combos, columns=[f'R{i + 1}' for i in range(red_count)])
 
-    if selected_main != st.session_state.main_nav:
-        st.session_state.main_nav = selected_main
-        st.session_state.show_results = False
+
+def generate_blue_combinations(is_ssq):
+    if is_ssq:
+        sel_blues = st.session_state.ssq_b
+        if not sel_blues: return pd.DataFrame()
+        return pd.DataFrame({'B1': sorted([int(x) for x in sel_blues])})
+    else:
+        b1_sel, b2_sel = st.session_state.dlt_b1, st.session_state.dlt_b2
+        if not b1_sel or not b2_sel: return pd.DataFrame()
+        p1 = sorted([int(x) for x in b1_sel])
+        p2 = sorted([int(x) for x in b2_sel])
+        blues = list(set((x, y) if x < y else (y, x) for x in p1 for y in p2 if x != y))
+        if not blues: return pd.DataFrame()
+        return pd.DataFrame(blues, columns=['B1', 'B2'])
+
+
+def execute_red_filters(df, conditions, is_ssq):
+    f_df = df.copy()
+    prev_draw = PREV_SSQ if is_ssq else PREV_DLT
+    for cond in conditions:
+        rule = cond['rule']
+        # ==============================================================
+        # 🚀 核心注入：AC值 8 大维度全维矩阵级秒级过筛引擎 (已闭环)
+        # ==============================================================
+        if cond['module'] == "AC值":
+            m_ac = re.match(
+                r"(AC值大小|AC值奇偶|AC值质合|AC值大中小|AC值012路|AC值升平降|AC值振幅|AC值) (保留|排除): \[(.*?)\]",
+                rule)
+            if m_ac:
+                sub_module = m_ac.group(1)
+                action = m_ac.group(2)
+                vals = [v.strip() for v in m_ac.group(3).split(',') if v.strip()]
+
+                # 1. 动态延迟计算当前大底所有组合的 AC 值
+                red_cols = [f'R{i + 1}' for i in range(6 if is_ssq else 5)]
+                red_matrix = f_df[red_cols].values
+                diffs = [np.abs(red_matrix[:, p[0]] - red_matrix[:, p[1]]) for p in
+                         combinations(range(6 if is_ssq else 5), 2)]
+                base = 5 if is_ssq else 4
+                ac_series = np.array([len(set(x)) - base for x in zip(*diffs)])
+
+                # 2. 动态读取上一期真实开奖 AC 值（用于推导个位数升平降和振幅）
+                hist_df = get_full_detailed_data(st.session_state.lottery_type)
+                if not hist_df.empty:
+                    last_hist_row = hist_df.iloc[-1]
+                    h_red_cols = [f'r{i + 1}' for i in range(6 if is_ssq else 5)]
+                    prev_reds = [int(last_hist_row[c]) for c in h_red_cols]
+                    prev_ac = len(set(abs(x - y) for x, y in combinations(prev_reds, 2))) - base
+                else:
+                    prev_reds = PREV_SSQ if is_ssq else PREV_DLT
+                    prev_ac = len(set(abs(x - y) for x, y in combinations(prev_reds, 2))) - base
+
+                # 3. 针对 8 大复合属性执行条件矩阵映射
+                if sub_module == "AC值":
+                    target_arr = ac_series
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "AC值大小":
+                    thresh = 6 if is_ssq else 4
+                    target_arr = np.where(ac_series >= thresh, "大数", "小数")
+                    check_vals = vals
+                elif sub_module == "AC值奇偶":
+                    target_arr = np.where(ac_series % 2 != 0, "奇数", "偶数")
+                    check_vals = vals
+                elif sub_module == "AC值质合":
+                    target_arr = np.where(np.isin(ac_series, [2, 3, 5, 7]), "质数", "合数")
+                    check_vals = vals
+                elif sub_module == "AC值大中小":
+                    if is_ssq:
+                        target_arr = np.where(ac_series <= 3, "小数", np.where(ac_series <= 7, "中数", "大数"))
+                    else:
+                        target_arr = np.where(ac_series <= 1, "小数", np.where(ac_series <= 4, "中数", "大数"))
+                    check_vals = vals
+                elif sub_module == "AC值012路":
+                    target_arr = np.array([f"{x % 3}路" for x in ac_series])
+                    check_vals = vals
+                elif sub_module == "AC值升平降":
+                    target_arr = np.where(ac_series > prev_ac, "升", np.where(ac_series < prev_ac, "降", "平"))
+                    check_vals = vals
+                elif sub_module == "AC值振幅":
+                    target_arr = np.abs(ac_series - prev_ac)
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+
+                # 4. 执行保留/排除切片过滤
+                mask = np.isin(target_arr, check_vals)
+                if action == "保留":
+                    f_df = f_df[mask]
+                else:
+                    f_df = f_df[~mask]
+            continue  # 成功完成AC值精算过滤，跳过后续常规判断，直接处理下一条条件指令
+        # ==============================================================
+        # 🚀 独立引擎 B：012路 全维矩阵级过筛 (新增)
+        # ==============================================================
+        if cond['module'] == "012路":
+            m_012 = re.match(r"(第\d+位012路|0路个数|1路个数|2路个数|012路个数排列) (保留|排除): \[(.*?)\]", rule)
+            if m_012:
+                sub_module = m_012.group(1)
+                action = m_012.group(2)
+                vals = [v.strip() for v in m_012.group(3).split(',') if v.strip()]
+
+                red_cols = [f'R{i + 1}' for i in range(6 if is_ssq else 5)]
+                red_matrix = f_df[red_cols].values
+                mod_matrix = red_matrix % 3
+
+                c0 = np.sum(mod_matrix == 0, axis=1)
+                c1 = np.sum(mod_matrix == 1, axis=1)
+                c2 = np.sum(mod_matrix == 2, axis=1)
+
+                if sub_module.startswith("第") and "位" in sub_module:
+                    pos = int(re.search(r"第(\d+)位", sub_module).group(1))
+                    target_arr = np.array([f"{x}路" for x in mod_matrix[:, pos - 1]])
+                    check_vals = vals
+                elif sub_module == "0路个数":
+                    target_arr = c0
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "1路个数":
+                    target_arr = c1
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "2路个数":
+                    target_arr = c2
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "012路个数排列":
+                    target_arr = np.array([f"{c0[i]}:{c1[i]}:{c2[i]}" for i in range(len(c0))])
+                    # 从 UI 的 "0: (5:0:0)" 中极速提取出核心比对值 "5:0:0"
+                    check_vals = []
+                    for v in vals:
+                        match = re.search(r'\((.*?)\)', v)
+                        if match:
+                            check_vals.append(match.group(1))
+                        else:
+                            check_vals.append(v)
+
+                    mask = np.isin(target_arr, check_vals)
+                    if action == "保留":
+                        f_df = f_df[mask]
+                    else:
+                        f_df = f_df[~mask]
+                continue
+        # ==============================================================
+        # 🚀 独立引擎 C：重跳新 与 历史N期落号 全维矩阵级过筛 (新增)
+        # ==============================================================
+        if cond['module'] == "重号":
+            m_rjn = re.match(
+                r"(第\d+位重跳新|重号个数|跳号个数|新号个数|20期内落号|30期内落号|50期内落号|100期内落号|重跳新个数排列) (保留|排除): \[(.*?)\]",
+                rule)
+            if m_rjn:
+                sub_module = m_rjn.group(1)
+                action = m_rjn.group(2)
+                vals = [v.strip() for v in m_rjn.group(3).split(',') if v.strip()]
+
+                # 读取全量历史数据
+                hist_df = get_full_detailed_data(st.session_state.lottery_type)
+                red_n = 6 if is_ssq else 5
+                h_cols = [f'r{i + 1}' for i in range(red_n)]
+
+                # 提取 上一期(N-1) 和 上上期(N-2) 用于判定 重、跳、新
+                prev_1_reds = set()
+                prev_2_reds = set()
+                if len(hist_df) >= 1: prev_1_reds = set(int(x) for x in hist_df.iloc[-1][h_cols])
+                if len(hist_df) >= 2: prev_2_reds = set(int(x) for x in hist_df.iloc[-2][h_cols])
+
+                num_attr = {}
+                for num in range(1, (33 if is_ssq else 35) + 1):
+                    if num in prev_1_reds:
+                        num_attr[num] = "重"
+                    elif num in prev_2_reds:
+                        num_attr[num] = "跳"
+                    else:
+                        num_attr[num] = "新"
+
+                red_cols = [f'R{i + 1}' for i in range(red_n)]
+                red_matrix = f_df[red_cols].values
+
+                if sub_module.startswith("第") and "位" in sub_module:
+                    pos = int(re.search(r"第(\d+)位", sub_module).group(1))
+                    target_arr = np.vectorize(num_attr.get)(red_matrix[:, pos - 1])
+                    check_vals = vals
+
+                elif sub_module in ["重号个数", "跳号个数", "新号个数"]:
+                    attr_target = sub_module[0]  # 提取 "重", "跳", "新"
+                    attr_mat = np.vectorize(num_attr.get)(red_matrix)
+                    target_arr = np.sum(attr_mat == attr_target, axis=1)
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+
+                elif sub_module == "重跳新个数排列":
+                    attr_mat = np.vectorize(num_attr.get)(red_matrix)
+                    c_rep = np.sum(attr_mat == "重", axis=1)
+                    c_jmp = np.sum(attr_mat == "跳", axis=1)
+                    c_new = np.sum(attr_mat == "新", axis=1)
+                    target_arr = np.array([f"{c_rep[i]}:{c_jmp[i]}:{c_new[i]}" for i in range(len(c_rep))])
+                    check_vals = []
+                    for v in vals:
+                        match = re.search(r'\((.*?)\)', v)
+                        if match:
+                            check_vals.append(match.group(1))
+                        else:
+                            check_vals.append(v)
+
+                elif "期内落号" in sub_module:
+                    n_periods = int(re.search(r"(\d+)期", sub_module).group(1))
+                    past_n_nums = set()
+                    if len(hist_df) > 0:
+                        target_hist = hist_df.tail(n_periods) if len(hist_df) >= n_periods else hist_df
+                        past_n_nums = set(target_hist[h_cols].values.flatten().astype(int))
+
+                    is_in_past = np.vectorize(lambda x: x in past_n_nums)(red_matrix)
+                    target_arr = np.sum(is_in_past, axis=1)
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+
+                mask = np.isin(target_arr, check_vals)
+                if action == "保留":
+                    f_df = f_df[mask]
+                else:
+                    f_df = f_df[~mask]
+            continue
+        # ==============================================================
+        # 🚀 独立引擎 D：冷热温号 动态基准矩阵级过筛 (新增)
+        # ==============================================================
+        if cond['module'] == "冷热温号":
+            m_hwc = re.match(
+                r"(基准.*?)_(第\d+位热温冷|热码个数|温码个数|冷码个数|热温冷个数排列) (保留|排除): \[(.*?)\]", rule)
+            if m_hwc:
+                base_str = m_hwc.group(1)
+                sub_module = m_hwc.group(2)
+                action = m_hwc.group(3)
+                vals = [v.strip() for v in m_hwc.group(4).split(',') if v.strip()]
+
+                # 1. 动态确定计算冷热的基准期数
+                hist_df = get_full_detailed_data(st.session_state.lottery_type)
+                if base_str == "基准全量历史数据":
+                    n_periods = len(hist_df)
+                else:
+                    match_p = re.search(r"\d+", base_str)
+                    n_periods = int(match_p.group()) if match_p else 100
+
+                recent_df = hist_df.tail(n_periods) if len(hist_df) >= n_periods else hist_df
+
+                # 2. 极速计算出该基准下的冷热温集合 (前30%热，后30%冷)
+                red_n = 6 if is_ssq else 5
+                max_r = 33 if is_ssq else 35
+                h_cols = [f'r{i + 1}' for i in range(red_n)]
+
+                freq = {i: 0 for i in range(1, max_r + 1)}
+                for c in h_cols:
+                    for n, cnt in recent_df[c].value_counts().items():
+                        freq[int(n)] += cnt
+
+                sorted_nums = sorted(freq.keys(), key=lambda x: freq[x], reverse=True)
+                hot_c, cold_c = int(max_r * 0.3), int(max_r * 0.3)
+                hot_set = set(sorted_nums[:hot_c])
+                cold_set = set(sorted_nums[-cold_c:])
+
+                # 利用 Numpy 数组特性建立超高速映射字典
+                attr_map = np.zeros(max_r + 1, dtype=object)
+                for n in range(1, max_r + 1):
+                    if n in hot_set:
+                        attr_map[n] = "热"
+                    elif n in cold_set:
+                        attr_map[n] = "冷"
+                    else:
+                        attr_map[n] = "温"
+
+                red_cols = [f'R{i + 1}' for i in range(red_n)]
+                red_matrix = f_df[red_cols].values
+                # 瞬间把百万级矩阵里的数字替换成对应的"热","温","冷"
+                attr_mat = attr_map[red_matrix]
+
+                # 3. 执行模块判定
+                if sub_module.startswith("第") and "位" in sub_module:
+                    pos = int(re.search(r"第(\d+)位", sub_module).group(1))
+                    target_arr = attr_mat[:, pos - 1]
+                    check_vals = vals
+                elif sub_module == "热码个数":
+                    target_arr = np.sum(attr_mat == "热", axis=1)
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "温码个数":
+                    target_arr = np.sum(attr_mat == "温", axis=1)
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "冷码个数":
+                    target_arr = np.sum(attr_mat == "冷", axis=1)
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                elif sub_module == "热温冷个数排列":
+                    c_h = np.sum(attr_mat == "热", axis=1)
+                    c_w = np.sum(attr_mat == "温", axis=1)
+                    c_c = np.sum(attr_mat == "冷", axis=1)
+                    target_arr = np.array([f"{c_h[i]}{c_w[i]}{c_c[i]}" for i in range(len(c_h))])
+                    check_vals = []
+                    for v in vals:
+                        match = re.search(r'\((\d+)\)', v)
+                        if match:
+                            check_vals.append(match.group(1))
+                        else:
+                            check_vals.append(v)
+
+                mask = np.isin(target_arr, check_vals)
+                if action == "保留":
+                    f_df = f_df[mask]
+                else:
+                    f_df = f_df[~mask]
+            continue
+        # ==============================================================
+        # 🚀 独立引擎 E：顺连号与奇偶连号 全维矩阵级过筛 (新增)
+        # ==============================================================
+        if cond['module'] == "顺连号":
+            m_seq = re.match(
+                r"(连号个数|连号组数|奇连个数|偶连个数|二连号|三连号|四连号|五连号|六连号) (保留|排除): \[(.*?)\]",
+                rule)
+            if m_seq:
+                sub_module = m_seq.group(1)
+                action = m_seq.group(2)
+                vals = [v.strip() for v in m_seq.group(3).split(',') if v.strip()]
+
+                red_n = 6 if is_ssq else 5
+                max_r = 33 if is_ssq else 35
+                red_cols = [f'R{i + 1}' for i in range(red_n)]
+
+                # 核心降维：构建布尔发生矩阵 R_bool (N x max_r+1)
+                R_bool = np.zeros((len(f_df), max_r + 1), dtype=bool)
+                for c in red_cols:
+                    R_bool[np.arange(len(f_df)), f_df[c].values.astype(int)] = True
+
+                if "个数" in sub_module or "组数" in sub_module:
+                    if sub_module == "连号个数" or sub_module == "连号组数":
+                        # 识别 1-2, 2-3 等相邻连号
+                        is_seq_mask = R_bool[:, 1:-1] & R_bool[:, 2:]
+                        if sub_module == "连号个数":
+                            in_seq = np.zeros_like(R_bool, dtype=bool)
+                            in_seq[:, 1:-1] |= is_seq_mask
+                            in_seq[:, 2:] |= is_seq_mask
+                            target_arr = np.sum(in_seq, axis=1)
+                        else:  # 连号组数 (利用位移差分计算连续块的组数)
+                            group_starts = is_seq_mask & ~np.pad(is_seq_mask[:, :-1], ((0, 0), (1, 0)),
+                                                                     constant_values=False)
+                            target_arr = np.sum(group_starts, axis=1)
+
+                    elif sub_module == "奇连个数":
+                        odd_cols = np.arange(1, max_r + 1, 2)
+                        R_odd = R_bool[:, odd_cols]
+                        odd_seq_mask = R_odd[:, :-1] & R_odd[:, 1:]
+                        in_odd_seq = np.zeros_like(R_odd, dtype=bool)
+                        in_odd_seq[:, :-1] |= odd_seq_mask
+                        in_odd_seq[:, 1:] |= odd_seq_mask
+                        target_arr = np.sum(in_odd_seq, axis=1)
+
+                    elif sub_module == "偶连个数":
+                        even_cols = np.arange(2, max_r + 1, 2)
+                        R_even = R_bool[:, even_cols]
+                        even_seq_mask = R_even[:, :-1] & R_even[:, 1:]
+                        in_even_seq = np.zeros_like(R_even, dtype=bool)
+                        in_even_seq[:, :-1] |= even_seq_mask
+                        in_even_seq[:, 1:] |= even_seq_mask
+                        target_arr = np.sum(in_even_seq, axis=1)
+
+                    check_vals = [int(v) for v in vals if v.isdigit()]
+                    mask = np.isin(target_arr, check_vals)
+
+                else:  # 特定微观指纹组合 (二连号, 三连号...)
+                    mask = np.zeros(len(f_df), dtype=bool)
+                    for val in vals:
+                        # 解析 "010203" -> [1, 2, 3]
+                        nums = [int(val[i:i + 2]) for i in range(0, len(val), 2)]
+                        has_this = np.all(R_bool[:, nums], axis=1)
+                        mask |= has_this
+
+                if action == "保留":
+                    f_df = f_df[mask]
+                else:
+                    f_df = f_df[~mask]
+            continue
+        m = re.match(r"(第(\d)位|(\d)位)(.*?) (保留|排除): \[(.*?)\]", rule)
+        if not m: continue
+        is_main = bool(m.group(2))
+        pos = int(m.group(2)) if is_main else int(m.group(3))
+        prop = m.group(4).strip()
+        action = m.group(5)
+        vals = [v.strip() for v in m.group(6).split(',')]
+        col = f"R{pos}"
+        if col not in f_df.columns: continue
+
+        target_series = f_df[col] if is_main else (f_df[col] % 10)
+        mask = pd.Series(False, index=f_df.index)
+
+        if prop == "":
+            mask = target_series.isin([int(v) for v in vals])
+        elif "大小" in prop:
+            threshold = 17 if (is_main and is_ssq) else (18 if is_main else 5)
+            is_large = target_series >= threshold
+            cond_masks = []
+            if "大数" in vals or "大" in vals: cond_masks.append(is_large)
+            if "小数" in vals or "小" in vals: cond_masks.append(~is_large)
+            if cond_masks: mask = pd.concat(cond_masks, axis=1).any(axis=1)
+        elif "奇偶" in prop:
+            is_odd = target_series % 2 != 0
+            cond_masks = []
+            if "奇数" in vals: cond_masks.append(is_odd)
+            if "偶数" in vals: cond_masks.append(~is_odd)
+            if cond_masks: mask = pd.concat(cond_masks, axis=1).any(axis=1)
+        elif "质合" in prop:
+            primes = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
+            is_prime = target_series.isin(primes)
+            cond_masks = []
+            if "质数" in vals: cond_masks.append(is_prime)
+            if "合数" in vals: cond_masks.append(~is_prime)
+            if cond_masks: mask = pd.concat(cond_masks, axis=1).any(axis=1)
+        elif "012路" in prop:
+            mod3 = target_series % 3
+            cond_masks = []
+            if "0路" in vals: cond_masks.append(mod3 == 0)
+            if "1路" in vals: cond_masks.append(mod3 == 1)
+            if "2路" in vals: cond_masks.append(mod3 == 2)
+            if cond_masks: mask = pd.concat(cond_masks, axis=1).any(axis=1)
+        elif "大中小" in prop:
+            cond_masks = []
+            if "小数" in vals: cond_masks.append(target_series.isin([0, 1, 2]))
+            if "中数" in vals: cond_masks.append(target_series.isin([3, 4, 5, 6]))
+            if "大数" in vals: cond_masks.append(target_series.isin([7, 8, 9]))
+            if cond_masks: mask = pd.concat(cond_masks, axis=1).any(axis=1)
+        elif "振幅" in prop:
+            prev_num = prev_draw[pos - 1]
+            if not is_main: prev_num = prev_num % 10
+            amp_series = (target_series - prev_num).abs()
+            mask = amp_series.isin([int(v) for v in vals])
+
+        if action == "保留":
+            f_df = f_df[mask]
+        else:
+            f_df = f_df[~mask]
+    return f_df
+
+
+def execute_prize_filters(df, conditions, is_ssq):
+    prize_conds = [c['rule'] for c in conditions if c['module'] == "奖项区间波动"]
+    if not prize_conds or df.empty: return df
+
+    kills = []
+    limits = {}
+    for rule in prize_conds:
+        for part in rule.split("|"):
+            part = part.strip()
+            m_kill = re.match(r"排除历史(\d+)等奖", part)
+            if m_kill:
+                kills.append(int(m_kill.group(1)))
+
+            # 兼容数字7和福运奖的文本解析
+            m_limit = re.match(r"(.*?)等奖区间:\[(\d+),(\d+)\]", part)
+            if m_limit:
+                p_key = m_limit.group(1)
+                if p_key == "福运":
+                    p_idx = 7
+                else:
+                    p_idx = int(p_key)
+                limits[p_idx] = (int(m_limit.group(2)), int(m_limit.group(3)))
+
+    hist_df = get_full_detailed_data(st.session_state.lottery_type)
+    if hist_df.empty: return df
+
+    chunk_size = 50000
+    valid_indices = []
+
+    R_max, B_max = 33 if is_ssq else 35, 16 if is_ssq else 12
+    H = len(hist_df)
+    hist_R = np.zeros((H, R_max + 1), dtype=np.int8)
+    hist_B = np.zeros((H, B_max + 1), dtype=np.int8)
+
+    h_red_cols = [f'r{i + 1}' for i in range(6 if is_ssq else 5)]
+    h_blue_cols = [f'b{i + 1}' for i in range(1 if is_ssq else 2)]
+
+    for c in h_red_cols: hist_R[np.arange(H), hist_df[c].values.astype(int)] = 1
+    for c in h_blue_cols: hist_B[np.arange(H), hist_df[c].values.astype(int)] = 1
+
+    red_cols = [f'R{i + 1}' for i in range(6 if is_ssq else 5)]
+    blue_cols = ['B1'] if is_ssq else ['B1', 'B2']
+    has_blues = 'B1' in df.columns and not pd.isna(df['B1'].iloc[0])
+
+    for start_idx in range(0, len(df), chunk_size):
+        chunk = df.iloc[start_idx:start_idx + chunk_size]
+        N = len(chunk)
+        page_R = np.zeros((N, R_max + 1), dtype=np.int8)
+        page_B = np.zeros((N, B_max + 1), dtype=np.int8)
+
+        for c in red_cols: page_R[np.arange(N), chunk[c].values] = 1
+        if has_blues:
+            for c in blue_cols: page_B[np.arange(N), chunk[c].values.astype(int)] = 1
+
+        r_hits = np.dot(page_R, hist_R.T)
+        b_hits = np.dot(page_B, hist_B.T) if has_blues else np.zeros((N, H), dtype=np.int8)
+
+        mask = np.ones(N, dtype=bool)
+        counts = {}
+
+        if is_ssq:
+            counts[1] = np.sum((r_hits == 6) & (b_hits == 1), axis=1)
+            counts[2] = np.sum((r_hits == 6) & (b_hits == 0), axis=1)
+            counts[3] = np.sum((r_hits == 5) & (b_hits == 1), axis=1)
+            counts[4] = np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 1)), axis=1)
+            counts[5] = np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 1)), axis=1)
+            counts[6] = np.sum((r_hits <= 2) & (b_hits == 1), axis=1)
+            counts[7] = np.sum((r_hits == 3) & (b_hits == 0), axis=1)  # 满血打通双色球福运奖
+        else:
+            counts[1] = np.sum((r_hits == 5) & (b_hits == 2), axis=1)
+            counts[2] = np.sum((r_hits == 5) & (b_hits == 1), axis=1)
+            counts[3] = np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 2)), axis=1)
+            counts[4] = np.sum((r_hits == 4) & (b_hits == 1), axis=1)
+            counts[5] = np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 2)), axis=1)
+            counts[6] = np.sum(((r_hits == 3) & (b_hits == 1)) | ((r_hits == 2) & (b_hits == 2)), axis=1)
+            counts[7] = np.sum(
+                ((r_hits == 3) & (b_hits == 0)) | ((r_hits == 2) & (b_hits == 1)) | ((r_hits <= 1) & (b_hits == 2)),
+                axis=1)
+
+        for k in kills:
+            if k in counts: mask &= (counts[k] == 0)
+
+        for pk, (mi, ma) in limits.items():
+            if pk in counts: mask &= (counts[pk] >= mi) & (counts[pk] <= ma)
+
+        valid_indices.extend(chunk.index[mask])
+
+    return df.loc[valid_indices].reset_index(drop=True)
+
+def calc_prizes_fast(page_df, is_ssq):
+    # 注意这里调用的是 app.py 中读取真实 Excel 的函数！
+    hist_df = get_full_detailed_data(st.session_state.lottery_type)
+    if hist_df.empty:
+        prize_cols = [f'{i}等奖' for i in range(1, 7)] + ['福运奖'] if is_ssq else [f'{i}等奖' for i in range(1, 8)]
+        for c in prize_cols: page_df[c] = 0
+        return page_df
+
+    N, H = len(page_df), len(hist_df)
+    R_max, B_max = 33 if is_ssq else 35, 16 if is_ssq else 12
+
+    page_R = np.zeros((N, R_max + 1), dtype=np.int8)
+    page_B = np.zeros((N, B_max + 1), dtype=np.int8)
+    hist_R = np.zeros((H, R_max + 1), dtype=np.int8)
+    hist_B = np.zeros((H, B_max + 1), dtype=np.int8)
+
+    red_cols = [f'R{i + 1}' for i in range(6 if is_ssq else 5)]
+    blue_cols = ['B1'] if is_ssq else ['B1', 'B2']
+    h_red_cols = [f'r{i + 1}' for i in range(6 if is_ssq else 5)]
+    h_blue_cols = [f'b{i + 1}' for i in range(1 if is_ssq else 2)]
+
+    has_blues = not pd.isna(page_df['B1'].iloc[0]) if not page_df.empty and 'B1' in page_df.columns else False
+
+    for c in red_cols: page_R[np.arange(N), page_df[c].values] = 1
+    if has_blues:
+        for c in blue_cols: page_B[np.arange(N), page_df[c].values.astype(int)] = 1
+
+    for c in h_red_cols: hist_R[np.arange(H), hist_df[c].values.astype(int)] = 1
+    for c in h_blue_cols: hist_B[np.arange(H), hist_df[c].values.astype(int)] = 1
+
+    r_hits = np.dot(page_R, hist_R.T)
+    b_hits = np.dot(page_B, hist_B.T)
+
+    if is_ssq:
+        page_df['1等奖'] = np.sum((r_hits == 6) & (b_hits == 1), axis=1)
+        page_df['2等奖'] = np.sum((r_hits == 6) & (b_hits == 0), axis=1)
+        page_df['3等奖'] = np.sum((r_hits == 5) & (b_hits == 1), axis=1)
+        page_df['4等奖'] = np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 1)), axis=1)
+        page_df['5等奖'] = np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 1)), axis=1)
+        page_df['6等奖'] = np.sum((r_hits <= 2) & (b_hits == 1), axis=1)
+        page_df['福运奖'] = 0
+    else:
+        page_df['1等奖'] = np.sum((r_hits == 5) & (b_hits == 2), axis=1)
+        page_df['2等奖'] = np.sum((r_hits == 5) & (b_hits == 1), axis=1)
+        page_df['3等奖'] = np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 2)), axis=1)
+        page_df['4等奖'] = np.sum((r_hits == 4) & (b_hits == 1), axis=1)
+        page_df['5等奖'] = np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 2)), axis=1)
+        page_df['6等奖'] = np.sum(((r_hits == 3) & (b_hits == 1)) | ((r_hits == 2) & (b_hits == 2)), axis=1)
+        page_df['7等奖'] = np.sum(
+            ((r_hits == 3) & (b_hits == 0)) | ((r_hits == 2) & (b_hits == 1)) | ((r_hits <= 1) & (b_hits == 2)), axis=1)
+    return page_df
+
+
+# --- 状态交互函数 ---
+def toggle_red(ball_str, is_ssq):
+    target_list = st.session_state.selected_reds_ssq if is_ssq else st.session_state.selected_reds_dlt
+    if ball_str in target_list:
+        target_list.remove(ball_str)
+    else:
+        target_list.append(ball_str)
+
+
+def select_all_red(is_ssq):
+    max_b = 33 if is_ssq else 35
+    if is_ssq:
+        st.session_state.selected_reds_ssq = [f"{i:02d}" for i in range(1, max_b + 1)]
+    else:
+        st.session_state.selected_reds_dlt = [f"{i:02d}" for i in range(1, max_b + 1)]
+
+
+def clear_all_red(is_ssq):
+    if is_ssq:
+        st.session_state.selected_reds_ssq = []
+    else:
+        st.session_state.selected_reds_dlt = []
+
+
+def toggle_blue(ball_str, target_key):
+    if ball_str in st.session_state[target_key]:
+        st.session_state[target_key].remove(ball_str)
+    else:
+        st.session_state[target_key].append(ball_str)
+
+
+def blue_action(action, target_key, max_range, start_idx=1):
+    if action == "全选":
+        st.session_state[target_key] = [f"{i:02d}" for i in range(start_idx, start_idx + max_range)]
+    elif action == "清除":
+        st.session_state[target_key] = []
+    elif action == "反选":
+        all_b = [f"{i:02d}" for i in range(start_idx, start_idx + max_range)]
+        st.session_state[target_key] = [b for b in all_b if b not in st.session_state[target_key]]
+
+
+def toggle_tail(pos, val):
+    arr = st.session_state[f'tail_{pos}']
+    if val in arr:
+        arr.remove(val)
+    else:
+        arr.append(val)
+
+
+def select_all_tail(pos): st.session_state[f'tail_{pos}'] = [str(i) for i in range(10)]
+
+
+def clear_tail(pos): st.session_state[f'tail_{pos}'] = []
+
+
+def toggle_temp_set(category, val):
+    if category not in st.session_state.temp_sets: st.session_state.temp_sets[category] = []
+    if val in st.session_state.temp_sets[category]:
+        st.session_state.temp_sets[category].remove(val)
+    else:
+        st.session_state.temp_sets[category].append(val)
+
+
+def add_condition(module, rule):
+    st.session_state.filter_conditions.append({"module": module, "rule": rule})
+    st.session_state.temp_sets = {}
+
+
+# --- 悬浮窗辅助函数与弹窗组件 ---
+def render_dialog_row(label, opts, category, module_name="过滤条件"):
+    c_l, c_opts, _, c_keep, c_ex = st.columns([2.5, 6, 0.5, 1, 1])
+    with c_l:
+        st.markdown(f"<div style='font-weight:bold; margin-top:5px; font-size:14px;'>{label}</div>",
+                    unsafe_allow_html=True)
+    with c_opts:
+        oc = st.columns(max(len(opts), 10))
+        for i, opt in enumerate(opts):
+            current_set = st.session_state.temp_sets.get(category, [])
+            is_sel = opt in current_set
+            marker = "is-rect-btn-active" if is_sel else "is-rect-btn-inactive"
+            with oc[i]:
+                st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                st.button(opt, key=f"dr_{category}_{i}", on_click=toggle_temp_set, args=(category, opt))
+    with c_keep:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("保留", key=f"dk_{category}"):
+            current_set = st.session_state.temp_sets.get(category, [])
+            if current_set: add_condition(module_name, f"{label} 保留: [{','.join(current_set)}]"); st.rerun()
+    with c_ex:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("排除", key=f"de_{category}"):
+            current_set = st.session_state.temp_sets.get(category, [])
+            if current_set: add_condition(module_name, f"{label} 排除: [{','.join(current_set)}]"); st.rerun()
+
+
+def get_main_instruction(pos, is_ssq):
+    return f"相关指标说明请参考第{pos}位图表"  # 为节省篇幅暂略说明文本内容，保持核心逻辑即可
+
+
+@st.dialog("蓝号处理", width="large")
+def blue_zone_modal():
+    is_ssq = st.session_state.lottery_type == "双色球"
+    if is_ssq:
+        c_label, c_balls, c_ops = st.columns([1.5, 8.5, 2])
+        c_label.markdown("<div style='margin-top:10px; font-weight:bold;'>蓝球选择</div>", unsafe_allow_html=True)
+        with c_balls:
+            bc = st.columns(16)
+            for i in range(16):
+                b_str = f"{i + 1:02d}"
+                is_sel = b_str in st.session_state.ssq_b
+                marker = "is-blue-ball-active" if is_sel else "is-blue-ball-inactive"
+                with bc[i]:
+                    st.markdown(f'<div class="is-blue-ball {marker}"></div>', unsafe_allow_html=True)
+                    st.button(b_str, key=f"mb_{b_str}", on_click=toggle_blue, args=(b_str, 'ssq_b'))
+        with c_ops:
+            oc1, oc2, oc3 = st.columns(3)
+            with oc1:
+                st.markdown('<div class="is-mini-btn"></div>', unsafe_allow_html=True)
+                st.button("全选", key="m_all_s", on_click=blue_action, args=("全选", 'ssq_b', 16, 1))
+            with oc2:
+                st.markdown('<div class="is-mini-btn"></div>', unsafe_allow_html=True)
+                st.button("反选", key="m_rev_s", on_click=blue_action, args=("反选", 'ssq_b', 16, 1))
+            with oc3:
+                st.markdown('<div class="is-mini-btn"></div>', unsafe_allow_html=True)
+                st.button("清除", key="m_clr_s", on_click=blue_action, args=("清除", 'ssq_b', 16, 1))
+    else:
+        for pos_idx, b_key in [(1, 'dlt_b1'), (2, 'dlt_b2')]:
+            c_l, c_b, c_o = st.columns([1.5, 8.5, 2])
+            c_l.markdown(f"<div style='margin-top:10px; font-weight:bold;'>第{pos_idx}位</div>", unsafe_allow_html=True)
+            with c_b:
+                bc = st.columns(12)
+                for i in range(11):
+                    b_str = f"{i + pos_idx:02d}"
+                    is_sel = b_str in st.session_state[b_key]
+                    marker = "is-blue-ball-active" if is_sel else "is-blue-ball-inactive"
+                    with bc[i]:
+                        st.markdown(f'<div class="is-blue-ball {marker}"></div>', unsafe_allow_html=True)
+                        st.button(b_str, key=f"mb{pos_idx}_{b_str}", on_click=toggle_blue, args=(b_str, b_key))
+            with c_o:
+                oc1, oc2, oc3 = st.columns(3)
+                with oc1:
+                    st.markdown('<div class="is-mini-btn"></div>', unsafe_allow_html=True)
+                    st.button("全选", key=f"m_all_{pos_idx}", on_click=blue_action, args=("全选", b_key, 11, pos_idx))
+                with oc2:
+                    st.markdown('<div class="is-mini-btn"></div>', unsafe_allow_html=True)
+                    st.button("反选", key=f"m_rev_{pos_idx}", on_click=blue_action, args=("反选", b_key, 11, pos_idx))
+                with oc3:
+                    st.markdown('<div class="is-mini-btn"></div>', unsafe_allow_html=True)
+                    st.button("清除", key=f"m_clr_{pos_idx}", on_click=blue_action, args=("清除", b_key, 11, pos_idx))
+
+    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    c_method, _, c_cancel, c_confirm = st.columns([3, 5, 1.5, 1.5])
+    with c_method:
+        st.session_state.b_method = st.radio("处理方式", ["循环使用", "逐一使用"],
+                                             index=0 if st.session_state.b_method == "循环使用" else 1, horizontal=True,
+                                             label_visibility="collapsed")
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="m_cancel"): st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="m_confirm"): st.rerun()
+
+
+@st.dialog("定位", width="large")
+def position_filter_modal(top_tab_context, is_ssq):
+    if "尾数" not in top_tab_context:
+        pos_max = 7 if is_ssq else 6
+        tabs = st.tabs([f"第{i}位" for i in range(1, pos_max)])
+        for i, pt in enumerate(tabs):
+            pos = i + 1
+            with pt:
+                start_num = pos
+                end_num = (33 if is_ssq else 35) - ((6 if is_ssq else 5) - pos)
+                category = f"pos_main_{pos}"
+
+                c_l1, c_balls, _, c_keep1, c_ex1 = st.columns([2.5, 6, 0.5, 1, 1])
+                c_l1.markdown(f"<div style='font-weight:bold; margin-top:10px; font-size:14px;'>第{pos}位</div>", unsafe_allow_html=True)
+                with c_balls:
+                    valid_nums = [f"{x:02d}" for x in range(start_num, end_num + 1)]
+                    for row_start in range(0, len(valid_nums), 10):
+                        row_nums = valid_nums[row_start:row_start + 10]
+                        bc = st.columns(10)
+                        for j, num in enumerate(row_nums):
+                            is_sel = num in st.session_state.temp_sets.get(category, [])
+                            marker = "is-ball-active" if is_sel else "is-ball-inactive"
+                            with bc[j]:
+                                st.markdown(f'<div class="is-ball {marker}"></div>', unsafe_allow_html=True)
+                                st.button(num, key=f"mbn_{pos}_{num}", on_click=toggle_temp_set, args=(category, num))
+                with c_keep1:
+                    st.markdown('<div class="is-rect-btn is-rect-btn-active" style="margin-top:10px;"></div>', unsafe_allow_html=True)
+                    if st.button("保留", key=f"mkn_m_{pos}"):
+                        if st.session_state.temp_sets.get(category):
+                            add_condition("红球-定位", f"第{pos}位 保留: [{','.join(st.session_state.temp_sets[category])}]")
+                            st.rerun()
+                with c_ex1:
+                    st.markdown('<div class="is-rect-btn is-rect-btn-inactive" style="margin-top:10px;"></div>', unsafe_allow_html=True)
+                    if st.button("排除", key=f"men_m_{pos}"):
+                        if st.session_state.temp_sets.get(category):
+                            add_condition("红球-定位", f"第{pos}位 排除: [{','.join(st.session_state.temp_sets[category])}]")
+                            st.rerun()
+
+                st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+                render_dialog_row(f"第{pos}位大小", ["大数", "小数"], f"p_bs_{pos}", "红球-定位")
+                render_dialog_row(f"第{pos}位奇偶", ["奇数", "偶数"], f"p_oe_{pos}", "红球-定位")
+                render_dialog_row(f"第{pos}位质合", ["质数", "合数"], f"p_pc_{pos}", "红球-定位")
+                render_dialog_row(f"第{pos}位大中小", ["大数", "中数", "小数"], f"p_bms_{pos}", "红球-定位")
+                render_dialog_row(f"第{pos}位012路", ["0路", "1路", "2路"], f"p_012_{pos}", "红球-定位")
+                render_dialog_row(f"第{pos}位升平降", ["升", "平", "降"], f"p_upd_{pos}", "红球-定位")
+    else:
+        nums = [int(x) for x in top_tab_context if x.isdigit()]
+        tabs = st.tabs([f"{pos}位" for pos in nums])
+        for i, pt in enumerate(tabs):
+            pos = nums[i]
+            with pt:
+                category = f"pos_tail_{pos}"
+
+                c_l1, c_balls, _, c_keep1, c_ex1 = st.columns([2.5, 6, 0.5, 1, 1])
+                c_l1.markdown(f"<div style='font-weight:bold; margin-top:10px; font-size:14px;'>{pos}位尾数</div>", unsafe_allow_html=True)
+                with c_balls:
+                    bc = st.columns(10)
+                    for j in range(10):
+                        num_str = str(j)
+                        is_sel = num_str in st.session_state.temp_sets.get(category, [])
+                        marker = "is-ball-active" if is_sel else "is-ball-inactive"
+                        with bc[j]:
+                            st.markdown(f'<div class="is-ball {marker}"></div>', unsafe_allow_html=True)
+                            st.button(num_str, key=f"mtn_{pos}_{j}", on_click=toggle_temp_set, args=(category, num_str))
+                with c_keep1:
+                    st.markdown('<div class="is-rect-btn is-rect-btn-active" style="margin-top:10px;"></div>', unsafe_allow_html=True)
+                    if st.button("保留", key=f"mkt_t_{pos}"):
+                        if st.session_state.temp_sets.get(category):
+                            add_condition("红球-尾数定位", f"{pos}位尾数 保保留: [{','.join(st.session_state.temp_sets[category])}]")
+                            st.rerun()
+                with c_ex1:
+                    st.markdown('<div class="is-rect-btn is-rect-btn-inactive" style="margin-top:10px;"></div>', unsafe_allow_html=True)
+                    if st.button("排除", key=f"met_t_{pos}"):
+                        if st.session_state.temp_sets.get(category):
+                            add_condition("红球-尾数定位", f"{pos}位尾数 排除: [{','.join(st.session_state.temp_sets[category])}]")
+                            st.rerun()
+
+                st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+                render_dialog_row(f"{pos}位尾数大小", ["大数", "小数"], f"t_bs_{pos}", "红球-尾数定位")
+                render_dialog_row(f"{pos}位尾数奇偶", ["奇数", "偶数"], f"t_oe_{pos}", "红球-尾数定位")
+                render_dialog_row(f"{pos}位尾数质合", ["质数", "合数"], f"t_pc_{pos}", "红球-尾数定位")
+                render_dialog_row(f"{pos}位尾数大中小", ["大数", "中数", "小数"], f"t_bms_{pos}", "红球-尾数定位")
+                render_dialog_row(f"{pos}位尾数012路", ["0路", "1路", "2路"], f"t_012_{pos}", "红球-尾数定位")
+                render_dialog_row(f"{pos}位尾数升平降", ["升", "平", "降"], f"t_upd_{pos}", "红球-尾数定位")
+                render_dialog_row(f"{pos}位尾数振幅", [str(x) for x in range(10)], f"t_amp_{pos}", "红球-尾数定位")
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_confirm = st.columns([7, 1.5, 1.5])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="mc_cancel_close"): st.session_state.temp_sets = {}; st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="mc_confirm_close"):
+            # 🌟 核心升级：一键扫描并打包保存视窗内的所有复合勾选多选条件！
+            label_map = {"bs": "大小", "oe": "奇偶", "pc": "质合", "bms": "大中小", "012": "012路", "upd": "升平降", "amp": "振幅"}
+            has_added = False
+            for k, vals in list(st.session_state.temp_sets.items()):
+                if not vals: continue
+                if k.startswith("pos_main_"):
+                    st.session_state.filter_conditions.append({"module": "红球-定位", "rule": f"第{k.replace('pos_main_', '')}位 保留: [{','.join(vals)}]"})
+                    has_added = True
+                elif k.startswith("pos_tail_"):
+                    st.session_state.filter_conditions.append({"module": "红球-尾数定位", "rule": f"{k.replace('pos_tail_', '')}位尾数 保留: [{','.join(vals)}]"})
+                    has_added = True
+                elif k.startswith("p_") and "_" in k:
+                    p_ts = k.split("_")
+                    if p_ts[1] in label_map:
+                        st.session_state.filter_conditions.append({"module": "红球-定位", "rule": f"第{p_ts[2]}位{label_map[p_ts[1]]} 保留: [{','.join(vals)}]"})
+                        has_added = True
+                elif k.startswith("t_") and "_" in k:
+                    p_ts = k.split("_")
+                    if p_ts[1] in label_map:
+                        st.session_state.filter_conditions.append({"module": "红球-尾数定位", "rule": f"{p_ts[2]}位尾数{label_map[p_ts[1]]} 保留: [{','.join(vals)}]"})
+                        has_added = True
+            st.session_state.temp_sets = {}
+            st.rerun()
+
+
+@st.dialog("大小", width="large")
+def size_filter_modal(nums):
+    for pos in nums: render_dialog_row(f"{pos}位大小", ["大", "小"], f"size_pos_{pos}", "红球-大小")
+    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    render_dialog_row("大数个数", ["0", "1", "2", "3", "4", "5", "6"][:len(nums) + 1], "size_large_cnt", "红球-大小")
+    render_dialog_row("小数个数", ["0", "1", "2", "3", "4", "5", "6"][:len(nums) + 1], "size_small_cnt", "红球-大小")
+
+    group_opts = []
+    for l in range(len(nums), -1, -1):
+        s = len(nums) - l
+        if s == 0: group_opts.append(f"{l}大数")
+        elif l == 0: group_opts.append(f"{s}小数")
+        else: group_opts.append(f"{l}大{s}小")
+    render_dialog_row("大小组选形态", group_opts, "size_group_form", "红球-大小")
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_confirm = st.columns([7, 1.5, 1.5])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="sz_cancel_close"): st.session_state.temp_sets = {}; st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="sz_confirm_close"):
+            # 🌟 核心修复：多层指标一键打包
+            for k, vals in list(st.session_state.temp_sets.items()):
+                if not vals: continue
+                if k.startswith("size_pos_"):
+                    st.session_state.filter_conditions.append({"module": "红球-大小", "rule": f"{k.replace('size_pos_', '')}位大小 保留: [{','.join(vals)}]"})
+                elif k == "size_large_cnt": st.session_state.filter_conditions.append({"module": "红球-大小", "rule": f"大数个数 保留: [{','.join(vals)}]"})
+                elif k == "size_small_cnt": st.session_state.filter_conditions.append({"module": "红球-大小", "rule": f"小数个数 保留: [{','.join(vals)}]"})
+                elif k == "size_group_form": st.session_state.filter_conditions.append({"module": "红球-大小", "rule": f"大小组选形态 保留: [{','.join(vals)}]"})
+            st.session_state.temp_sets = {}
+            st.rerun()
+
+
+@st.dialog("和值振幅", width="large")
+def amp_filter_modal():
+    category = "amp_main_balls"
+    c_l1, c_balls, _, c_keep1, c_ex1 = st.columns([2.5, 6, 0.5, 1, 1])
+    c_l1.markdown("<div style='font-weight:bold; margin-top:10px; font-size:14px;'>和值振幅</div>", unsafe_allow_html=True)
+    with c_balls:
+        for row_start in [0, 15]:
+            row_nums = range(row_start, min(row_start + 15, 28))
+            bc = st.columns(15)
+            for j, num in enumerate(row_nums):
+                num_str = str(num)
+                is_sel = num_str in st.session_state.temp_sets.get(category, [])
+                marker = "is-ball-active" if is_sel else "is-ball-inactive"
+                with bc[j]:
+                    st.markdown(f'<div class="is-ball {marker}"></div>', unsafe_allow_html=True)
+                    st.button(num_str, key=f"abn_{num}", on_click=toggle_temp_set, args=(category, num_str))
+    with c_keep1:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active" style="margin-top:10px;"></div>', unsafe_allow_html=True)
+        if st.button("保留", key="akn_amp"):
+            if st.session_state.temp_sets.get(category):
+                add_condition("红球-和值振幅", f"振幅 保留: [{','.join(st.session_state.temp_sets[category])}]")
+                st.rerun()
+    with c_ex1:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive" style="margin-top:10px;"></div>', unsafe_allow_html=True)
+        if st.button("排除", key="aen_amp"):
+            if st.session_state.temp_sets.get(category):
+                add_condition("红球-和值振幅", f"振幅 排除: [{','.join(st.session_state.temp_sets[category])}]")
+                st.rerun()
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    render_dialog_row("和值振幅大小", ["大数", "小数"], "amp_bs", "红球-和值振幅")
+    render_dialog_row("和值振幅奇偶", ["奇数", "偶数"], "amp_oe", "红球-和值振幅")
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_confirm = st.columns([7, 1.5, 1.5])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="amp_cancel_close"): st.session_state.temp_sets = {}; st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="amp_confirm_close"):
+            # 🌟 核心修复一键批量打包
+            for k, vals in list(st.session_state.temp_sets.items()):
+                if not vals: continue
+                if k == "amp_main_balls": st.session_state.filter_conditions.append({"module": "红球-和值振幅", "rule": f"振幅 保留: [{','.join(vals)}]"})
+                elif k == "amp_bs": st.session_state.filter_conditions.append({"module": "红球-和值振幅", "rule": f"和值振幅大小 保留: [{','.join(vals)}]"})
+                elif k == "amp_oe": st.session_state.filter_conditions.append({"module": "红球-和值振幅", "rule": f"和值振幅奇偶 保留: [{','.join(vals)}]"})
+            st.session_state.temp_sets = {}
+            st.rerun()
+
+
+# ==============================================================
+# 🎯 奖项区间波动设置弹窗 (纯净版，全归零，无符号)
+# ==============================================================
+@st.dialog("奖项区间波动设置", width="large")
+def prize_fluctuation_modal(is_ssq):
+    st.markdown("<div style='font-weight:bold; margin-top:10px; font-size:14px; color:#ff4b4b;'>历史奖项排雷区</div>",
+                unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-size:13px; margin-bottom:10px; color:#bbb;'>勾选下方奖项，直接排除历史上曾开出过该等级奖项的阵列：</div>",
+        unsafe_allow_html=True)
+
+    kill_levels = [1, 2, 3, 4, 5, 6, 7]
+    kill_flags = {}
+    cols_kill = st.columns(len(kill_levels))
+
+    for i, p in enumerate(kill_levels):
+        with cols_kill[i]:
+            p_name = "福运奖" if (is_ssq and p == 7) else f"{p}等奖"
+            # 默认勾选 1、2 等奖
+            kill_flags[p] = st.checkbox(p_name, value=True if p <= 2 else False, key=f"kill_{p}")
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-weight:bold; margin-bottom:10px; font-size:14px; color:#00bcd4;'>历史伴生奖项区间范围</div>",
+        unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-size:13px; margin-bottom:15px; color:#bbb;'>自由输入数字，设置各奖项历史命中次数的区间范围：</div>",
+        unsafe_allow_html=True)
+
+    if is_ssq:
+        intercept_config = [(3, "3等奖"), (4, "4等奖"), (5, "5等奖"), (6, "6等奖"), (7, "福运奖")]
+    else:
+        intercept_config = [(3, "3等奖"), (4, "4等奖"), (5, "5等奖"), (6, "6等奖"), (7, "7等奖")]
+
+    limits = {}
+    cols_intercept = st.columns(5)
+
+    for i, (p_id, p_name) in enumerate(intercept_config):
+        with cols_intercept[i]:
+            st.markdown(f"<div style='font-size:13px; text-align:center;'><b>{p_name}</b></div>",
+                        unsafe_allow_html=True)
+            c_min, c_max = st.columns(2)
+            with c_min:
+                min_v = st.number_input("最小", min_value=0, max_value=99999, value=0, step=1, key=f"pmin_{p_id}",
+                                        label_visibility="collapsed")
+            with c_max:
+                max_v = st.number_input("最大", min_value=0, max_value=99999, value=0, step=1, key=f"pmax_{p_id}",
+                                        label_visibility="collapsed")
+            limits[p_id] = (min_v, max_v)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("使用说明"):
+        st.markdown("""
+        <div class="instruction-text">
+        1. 排雷机制：勾选上方对应的奖项后，系统将自动校验大盘历史数据，扼杀所有已经开出过该奖项的旧阵列。<br>
+        2. 区间范围：自由设定各级奖项历史出现次数的区间范围。如设定5等奖最小值为10，最大值为50，则系统过滤后只保留满足该历史分布区间的组合。<br>
+        3. 忽略机制：若某奖项的最小和最大值均保持为 0，系统将不对该奖项的区间进行任何限制（如需限制其发生0次，请使用上方的排雷区勾选）。
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_confirm = st.columns([7, 1.5, 1.5])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="pf_cancel"): st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="pf_confirm"):
+            rules = []
+            # 生成排雷规则
+            for p, flag in kill_flags.items():
+                if flag:
+                    p_name = "福运奖" if (is_ssq and p == 7) else f"{p}等奖"
+                    rules.append(f"排除历史{p_name}")
+
+            # 生成区间范围规则（如果不是双0才生成规则）
+            for p_id, (mi, ma) in limits.items():
+                if mi > 0 or ma > 0:
+                    display_name = "福运" if (is_ssq and p_id == 7) else str(p_id)
+                    rules.append(f"{display_name}等奖区间:[{mi},{ma}]")
+
+            if rules:
+                add_condition("奖项区间波动", " | ".join(rules))
+            st.rerun()
+
+
+# ==============================================================
+# 🎯 自选号码深度评测弹窗 (新功能)
+# ==============================================================
+@st.dialog("自选号码深度评测", width="large")
+def custom_number_eval_modal(is_ssq):
+    st.markdown(
+        "<div style='font-weight:bold; margin-top:10px; font-size:14px; color:#00bcd4;'>🔢 输入或批量粘贴自选组合进行全息诊断</div>",
+        unsafe_allow_html=True)
+    red_req, blue_req = (6, 1) if is_ssq else (5, 2)
+    eg = "01 05 12 16 22 30 + 07" if is_ssq else "01 05 12 16 22 + 04 07"
+
+    # 升级为多行文本大底注入舱
+    user_input = st.text_area(
+        "格式要求：红蓝球之间用 '+' 分隔，号码之间用空格分隔。支持输入多组号码，每行一组！",
+        placeholder=f"例如:\n{eg}\n02 06 11 15 23 31 + 08",
+        height=150
+    )
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_confirm = st.columns([7, 1.5, 1.5])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="eval_cancel"): st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("执行测算", key="eval_confirm"):
+            if not user_input.strip():
+                st.error("⚠️ 请输入至少一组有效号码！")
+                st.stop()
+
+            # 按行切分号码大底
+            lines = [line.strip() for line in user_input.replace('＋', '+').split('\n') if line.strip()]
+
+            parsed_combos = []
+            rows_data = []
+            error_lines = []
+
+            for idx, line in enumerate(lines):
+                try:
+                    parts = line.split('+')
+                    reds = sorted([int(x) for x in parts[0].split()])
+                    blues = sorted([int(x) for x in parts[1].split()]) if len(parts) > 1 else []
+
+                    if len(reds) != red_req or (len(parts) > 1 and len(blues) != blue_req):
+                        error_lines.append(f"第 {idx + 1} 行")
+                        continue
+
+                    # 蓝球对齐补齐防止空值异常
+                    blues_padded = blues + [np.nan] * (blue_req - len(blues))
+                    rows_data.append(reds + blues_padded)
+                    parsed_combos.append({'line_no': idx + 1, 'reds': reds, 'blues': blues})
+                except Exception:
+                    error_lines.append(f"第 {idx + 1} 行")
+                    continue
+
+            if not parsed_combos:
+                st.error(f"⚠️ 未检测到合规的号码特征！解析失败摘要：{', '.join(error_lines[:3])}")
+                st.stop()
+
+            # 矩阵级极速打包回测 (多组号码一次性全量扫描)
+            col_names = [f'R{i + 1}' for i in range(red_req)] + [f'B{i + 1}' for i in range(blue_req)]
+            eval_df = pd.DataFrame(rows_data, columns=col_names)
+            res_df = calc_prizes_fast(eval_df.copy(), is_ssq)
+
+            all_cards_html = []
+            last_prize_name = "福运奖" if is_ssq else "7等奖"
+
+            for i, combo in enumerate(parsed_combos):
+                reds = combo['reds']
+                blues = combo['blues']
+
+                # 批量获取对应的历史中奖总次数
+                c1_hit = int(res_df.iloc[i]['1等奖'])
+                c2_hit = int(res_df.iloc[i]['2等奖'])
+                c3_hit = int(res_df.iloc[i]['3等奖'])
+                c4_hit = int(res_df.iloc[i]['4等奖'])
+                c5_hit = int(res_df.iloc[i]['5等奖'])
+                c6_hit = int(res_df.iloc[i]['6等奖'])
+                c_last_hit = int(res_df.iloc[i]['福运奖'] if is_ssq else res_df.iloc[i]['7等奖'])
+
+                # 指标深度形态诊断
+                score = 100
+                details = []
+                sum_val = sum(reds)
+                span_val = reds[-1] - reds[0]
+                ac_val = len(set(abs(x - y) for x, y in itertools.combinations(reds, 2))) - (red_req - 1)
+                odd_cnt = sum(1 for x in reds if x % 2 != 0)
+                even_cnt = red_req - odd_cnt
+                big_thresh = 17 if is_ssq else 18
+                big_cnt = sum(1 for x in reds if x >= big_thresh)
+                small_cnt = red_req - big_cnt
+                c0, c1, c2 = sum(1 for x in reds if x % 3 == 0), sum(1 for x in reds if x % 3 == 1), sum(
+                    1 for x in reds if x % 3 == 2)
+
+                # 奇偶比检测
+                oe_ratio = f"{odd_cnt}:{even_cnt}"
+                if odd_cnt == 0 or even_cnt == 0:
+                    score -= 20;
+                    details.append(f"🔴 <b>奇偶比 [{oe_ratio}]</b>: 极端偏态区，扣 20 分。")
+                elif odd_cnt in [red_req // 2, (red_req + 1) // 2]:
+                    details.append(f"🟢 <b>奇偶比 [{oe_ratio}]</b>: 契合黄金常态均值。")
+                else:
+                    score -= 5;
+                    details.append(f"🟡 <b>奇偶比 [{oe_ratio}]</b>: 轻微偏态。")
+
+                # 大小比检测
+                bs_ratio = f"{big_cnt}:{small_cnt}"
+                if big_cnt == 0 or small_cnt == 0:
+                    score -= 20;
+                    details.append(f"🔴 <b>大小比 [{bs_ratio}]</b>: 极端偏态区，扣 20 分。")
+                elif big_cnt in [red_req // 2, (red_req + 1) // 2]:
+                    details.append(f"🟢 <b>大小比 [{bs_ratio}]</b>: 契合大盘中心潮汐。")
+                else:
+                    score -= 5;
+                    details.append(f"🟡 <b>大小比 [{bs_ratio}]</b>: 轻微偏移。")
+
+                # 和值区间
+                sum_ideal_min, sum_ideal_max = (90, 110) if is_ssq else (75, 105)
+                if sum_ideal_min <= sum_val <= sum_ideal_max:
+                    details.append(f"🟢 <b>和值 [{sum_val}]</b>: 落在核心爆发密集区 [{sum_ideal_min}-{sum_ideal_max}]。")
+                else:
+                    score -= 10;
+                    details.append(f"🟡 <b>和值 [{sum_val}]</b>: 偏离大盘主轴，扣 10 分。")
+
+                # AC值检测
+                ac_ideal = [4, 5, 6, 7, 8] if is_ssq else [2, 3, 4, 5]
+                if ac_val in ac_ideal:
+                    details.append(f"🟢 <b>AC值 [{ac_val}]</b>: 离散度健康，符合主流行情。")
+                else:
+                    score -= 15;
+                    details.append(f"🔴 <b>AC值 [{ac_val}]</b>: 形态过于极端，扣 15 分。")
+
+                details.append(f"⚪ <b>基础指标</b>: 跨度 <b>{span_val}</b> | 012路 <b>{c0}:{c1}:{c2}</b>")
+
+                # 历史大奖排雷
+                if c1_hit > 0:
+                    score -= 50;
+                    details.append(f"🔴 <b>历史排雷</b>: 致命警告！已中出一等奖过，几率耗尽重扣 50 分！")
+                elif c2_hit > 0:
+                    score -= 30;
+                    details.append(f"🔴 <b>历史排雷</b>: 危险信号！已中出过二等奖，重号极其疲软扣 30 分。")
+                else:
+                    details.append(f"🟢 <b>历史排雷</b>: 纯净大底！内含下级奖项特征，突围能动性强。")
+
+                score = max(1, score)
+                prob_text = f"{(score / 100 * 99.98):.2f}%"
+
+                r_str = " ".join([f"{x:02d}" for x in reds])
+                b_str = (" + " + " ".join([f"{x:02d}" for x in blues])) if blues else " (未输入蓝球)"
+
+                # 采用单行拼接方式构建单个组合专属的奖项计数分布面板 (彻底避免缩进引发的乱码)
+                prize_html = (
+                    f"<div style='margin:12px 0; padding:10px; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid rgba(128,128,128,0.15);'>"
+                    f"<div style='display:flex; justify-content:space-between; text-align:center;'> Pins"
+                    f"<div style='flex:1;'><div style='color:#888; font-size:11px;'>1等</div><div style='color:{'#ff4b4b' if c1_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c1_hit}</div></div>"
+                    f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>2等</div><div style='color:{'#ff4b4b' if c2_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c2_hit}</div></div>"
+                    f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>3等</div><div style='color:{'#f9d71c' if c3_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c3_hit}</div></div>"
+                    f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>4等</div><div style='color:{'#00FF7F' if c4_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c4_hit}</div></div>"
+                    f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>5等</div><div style='color:{'#4da6ff' if c5_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c5_hit}</div></div>"
+                    f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>6等</div><div style='color:{'#fff' if c6_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c6_hit}</div></div>"
+                    f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>{last_prize_name[:2]}</div><div style='color:{'#fff' if c_last_hit > 0 else '#555'}; font-weight:bold; font-size:16px;'>{c_last_hit}</div></div>"
+                    f"</div></div>"
+                )
+
+                # 单组完整卡片组装
+                card_html = (
+                    f"<div style='padding:18px; background-color: rgba(255,255,255,0.01); border-radius:6px; border:1px solid rgba(0, 188, 212, 0.25); margin-bottom: 15px;'>"
+                    f"<div style='display:flex; justify-content:space-between; align-items:center;'>"
+                    f"<span style='font-size:13px; color:#00bcd4; font-weight:bold;'>组合 #{i + 1} (大底源自第{combo['line_no']}行)</span>"
+                    f"<span style='font-size:15px; font-weight:bold; color:{'#00FF7F' if score >= 80 else ('#f9d71c' if score >= 60 else '#ff4b4b')};'>中奖概率分：{prob_text}</span>"
+                    f"</div>"
+                    f"<h3 style='letter-spacing:1px; margin:10px 0; font-size:18px; text-align:left;'><span style='color:#ff4b4b;'>{r_str}</span><span style='color:#00bcd4;'>{b_str}</span></h3>"
+                    f"{prize_html}"
+                    f"<ul style='font-size:13px; line-height:1.7; color:var(--text-color); padding-left:20px; margin:5px 0 0 0;'>"
+                    f"{''.join([f'<li>{d}</li>' for d in details])}"
+                    f"</ul>"
+                    f"</div>"
+                )
+                all_cards_html.append(card_html)
+
+            # 外层包裹高级防溢出滚动视窗 (max-height: 520px 牢牢控制右侧视窗高度)
+            wrapped_report_html = (
+                f"<div style='padding:10px; background-color:var(--secondary-background-color); border-radius:8px; margin-bottom: 15px;'>"
+                f"<h3 style='text-align:center; color:#00bcd4; margin-top:0; margin-bottom:15px; font-size:16px;'>🔬 自选号码多组合全息量化测算报告</h3>"
+                f"<div style='font-size:13px; color:#bbb; margin-bottom:12px; text-align:center;'>成功回测大底：<b>{len(parsed_combos)}</b> 组 | 自动拦截无效行：<b>{len(error_lines)}</b> 行</div>"
+                f"<div style='max-height: 520px; overflow-y: auto; padding-right: 5px; scrollbar-width: thin;'>"
+                f"{''.join(all_cards_html)}"
+                f"</div>"
+                f"</div>"
+            )
+
+            st.session_state.eval_report = wrapped_report_html
+            st.session_state.show_eval = True
+            st.session_state.show_results = False
+            st.rerun()
+# ==============================================================
+# 🎯 底部操作栏专属弹窗与辅助函数
+# ==============================================================
+def generate_export_text(df, is_ssq):
+    """极速生成供导出的 TXT 文本"""
+    if df.empty: return ""
+    red_cols = [f'R{i+1}' for i in range(6 if is_ssq else 5)]
+    blue_cols = ['B1'] if is_ssq else ['B1', 'B2']
+    has_blues = 'B1' in df.columns and not pd.isna(df['B1'].iloc[0])
+
+    r_vals = df[red_cols].values
+    if has_blues:
+        b_vals = df[blue_cols].values
+        return "\n".join([" ".join(f"{int(x):02d}" for x in r) + " + " + " ".join(f"{int(x):02d}" for x in b) for r, b in zip(r_vals, b_vals)])
+    else:
+        return "\n".join([" ".join(f"{int(x):02d}" for x in r) for r in r_vals])
+
+@st.dialog("🎯 最新开奖命中查询", width="large")
+def prize_check_modal(is_ssq):
+    df = st.session_state.get('filtered_df', pd.DataFrame())
+    if df.empty:
+        st.warning("⚠️ 当前大底为空，请先执行过滤生成号码！")
+        return
+
+    latest_res = get_latest_result(st.session_state.lottery_type)
+    if not latest_res:
+        st.error("⚠️ 无法获取最新开奖数据，请检查本地表格！")
+        return
+
+    target_reds = latest_res['reds']
+    target_blues = latest_res['blues']
+
+    red_cols = [f'R{i+1}' for i in range(6 if is_ssq else 5)]
+    blue_cols = ['B1'] if is_ssq else ['B1', 'B2']
+    red_mat = df[red_cols].values
+    has_blues = 'B1' in df.columns and not pd.isna(df['B1'].iloc[0])
+    blue_mat = df[blue_cols].values if has_blues else np.zeros((len(df), len(blue_cols)))
+
+    # 极速矩阵核对命中数
+    r_hits = np.sum(np.isin(red_mat, target_reds), axis=1)
+    b_hits = np.sum(np.isin(blue_mat, target_blues), axis=1)
+
+    prize_counts = {"1等奖": 0, "2等奖": 0, "3等奖": 0, "4等奖": 0, "5等奖": 0, "6等奖": 0}
+    if is_ssq: prize_counts["福运奖"] = 0
+    else: prize_counts["7等奖"] = 0
+
+    # 匹配奖项规则
+    if is_ssq:
+        prize_counts['1等奖'] = int(np.sum((r_hits == 6) & (b_hits == 1)))
+        prize_counts['2等奖'] = int(np.sum((r_hits == 6) & (b_hits == 0)))
+        prize_counts['3等奖'] = int(np.sum((r_hits == 5) & (b_hits == 1)))
+        prize_counts['4等奖'] = int(np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 1))))
+        prize_counts['5等奖'] = int(np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 1))))
+        prize_counts['6等奖'] = int(np.sum((r_hits <= 2) & (b_hits == 1)))
+        prize_counts['福运奖'] = int(np.sum((r_hits == 3) & (b_hits == 0)))
+    else:
+        prize_counts['1等奖'] = int(np.sum((r_hits == 5) & (b_hits == 2)))
+        prize_counts['2等奖'] = int(np.sum((r_hits == 5) & (b_hits == 1)))
+        prize_counts['3等奖'] = int(np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 2))))
+        prize_counts['4等奖'] = int(np.sum((r_hits == 4) & (b_hits == 1)))
+        prize_counts['5等奖'] = int(np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 2))))
+        prize_counts['6等奖'] = int(np.sum(((r_hits == 3) & (b_hits == 1)) | ((r_hits == 2) & (b_hits == 2))))
+        prize_counts['7等奖'] = int(np.sum(((r_hits == 3) & (b_hits == 0)) | ((r_hits == 2) & (b_hits == 1)) | ((r_hits <= 1) & (b_hits == 2))))
+
+    total_hits = sum(prize_counts.values())
+
+    # 渲染结果面板
+    st.markdown(f"<h3 style='text-align:center; color:#bbb;'>比对开奖期号：<span style='color:#fff;'>第 {latest_res['period']} 期</span></h3>", unsafe_allow_html=True)
+    r_str = " ".join([f"{x:02d}" for x in target_reds])
+    b_str = " ".join([f"{x:02d}" for x in target_blues])
+    st.markdown(f"<h2 style='text-align:center; letter-spacing:2px; margin-bottom:20px;'><span style='color:#ff4b4b;'>{r_str}</span> + <span style='color:#00bcd4;'>{b_str}</span></h2>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center; margin-bottom:15px; font-size:16px;'>当前过滤大底共：<b>{len(df)}</b> 注 &nbsp; | &nbsp; 累计中出：<b style='color:#00FF7F;'>{total_hits}</b> 注</div>", unsafe_allow_html=True)
+
+    cols = st.columns(4)
+    for i, (k, v) in enumerate(prize_counts.items()):
+        with cols[i % 4]:
+            color = "#ff4b4b" if v > 0 else "#555"
+            bg_color = "rgba(255, 75, 75, 0.1)" if v > 0 else "var(--secondary-background-color)"
+            st.markdown(f"<div class='stat-card' style='background-color:{bg_color}; border-color:{color};'><h5>{k}</h5><h2 style='color:{color}; margin:0;'>{v} 注</h2></div>", unsafe_allow_html=True)
+
+    st.markdown("<hr style='border-color:rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_btn = st.columns([8, 2])
+    with c_btn:
+        if st.button("关闭", use_container_width=True): st.rerun()
+
+@st.dialog("📋 复制当前页号码", width="large")
+def copy_page_modal(is_ssq):
+    df = st.session_state.get('filtered_df', pd.DataFrame())
+    if df.empty:
+        st.warning("⚠️ 当前没有过滤结果，无法复制！")
+        return
+
+    # 切割当前页数据
+    per_page = 50000
+    current_page = st.session_state.get('current_page', 1)
+    total_pages = max(1, (len(df) - 1) // per_page + 1)
+    start_idx = (current_page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_df = df.iloc[start_idx:end_idx]
+
+    text_to_copy = generate_export_text(page_df, is_ssq)
+    st.info(f"💡 正在展示第 **{current_page}/{total_pages}** 页（共 {len(page_df)} 注）。请点击下方代码框右上角的 **📋 复制图标** 将号码复制到剪贴板！")
+    st.code(text_to_copy, language="text")
+
+@st.dialog("📦 导出全量过滤结果", width="small")
+def export_modal(is_ssq):
+    df = st.session_state.get('filtered_df', pd.DataFrame())
+    if df.empty:
+        st.warning("⚠️ 当前没有可导出的数据！")
+        return
+
+    st.info(f"当前共有 {len(df)} 注过滤结果，正在准备导出文件...")
+    with st.spinner("🚀 极速生成文件中，请稍候..."):
+        export_str = generate_export_text(df, is_ssq)
+
+    # 利用 Streamlit 原生下载按钮，实现真正的本地文件另存为
+    st.download_button(
+        label="✅ 点击下载 TXT 文件",
+        data=export_str,
+        file_name=f"{st.session_state.lottery_type}_超级大底组合.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+
+
+# ==============================================================
+# 📐 AC值全维偏态精算设置悬浮窗 (完美复刻截图版)
+# ==============================================================
+@st.dialog("AC值过滤设置", width="large")
+def ac_filter_modal(is_ssq):
+    st.markdown(
+        "<div style='font-weight:bold; margin-top:10px; font-size:14px; color:#00bcd4;'>📐 配置红球号码组合的 AC 值综合精算指标</div>",
+        unsafe_allow_html=True)
+
+    max_ac = 10 if is_ssq else 6
+    opts_nums = [str(x) for x in range(max_ac + 1)]
+    ideal_tips = "4, 5, 6, 7, 8" if is_ssq else "2, 3, 4, 5"
+    st.markdown(
+        f"<div style='font-size:13px; color:#bbb; margin-bottom:15px;'>数据大盘提示：常态核心井喷区间为 <b style='color:#00FF7F;'>[{ideal_tips}]</b></div>",
+        unsafe_allow_html=True)
+
+    # 完美对齐调用统帅指定的 8 行条件精算槽位
+    render_dialog_row("AC值", opts_nums, "ac_val", "AC值")
+    render_dialog_row("AC值大小", ["大数", "小数"], "ac_bs", "AC值")
+    render_dialog_row("AC值奇偶", ["奇数", "偶数"], "ac_oe", "AC值")
+    render_dialog_row("AC值质合", ["质数", "合数"], "ac_pc", "AC值")
+    render_dialog_row("AC值大中小", ["大数", "中数", "小数"], "ac_bms", "AC值")
+    render_dialog_row("AC值012路", ["0路", "1路", "2路"], "ac_012", "AC值")
+    render_dialog_row("AC值升平降", ["升", "平", "降"], "ac_upd", "AC值")
+    render_dialog_row("AC值振幅", opts_nums, "ac_amp", "AC值")
+
+    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_confirm = st.columns([7, 1.5, 1.5])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="ac_modal_cancel"): st.session_state.temp_sets = {}; st.rerun()
+    with c_confirm:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="ac_modal_confirm"): st.session_state.temp_sets = {}; st.rerun()
+
+
+# ==============================================================
+# 🔐 用户登录与注册中心大门 (内嵌式舱门)
+# ==============================================================
+def render_auth_gate():
+    st.markdown(
+        "<div style='max-width: 450px; margin: 60px auto; padding: 30px; background: var(--secondary-background-color); border: 1px solid #00bcd4; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,188,212,0.15);'>",
+        unsafe_allow_html=True)
+
+    st.markdown(
+        f"<h2 style='text-align:center; color:#00bcd4; margin-top:0; margin-bottom:20px;'>LottoTech 认证大门</h2>",
+        unsafe_allow_html=True)
+
+    # 登录/注册模式无缝切换
+    mode = st.radio("认证模式", ["快捷登录", "新用户注册"], horizontal=True, label_visibility="collapsed")
+    st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+
+    username = st.text_input("👤 账户名称：", placeholder="请输入账号")
+    password = st.text_input("🔒 认证密钥：", type="password", placeholder="请输入密码")
+
+    st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+
+    if mode == "快捷登录":
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("🚀 验证并进入终端", use_container_width=True):
+            if username in st.session_state.users_db and st.session_state.users_db[username] == password:
+                st.session_state.current_user = username
+                st.success(f" 欢迎回来，量化统帅 {username}！正在解锁全维矩阵...")
+                st.rerun()
+            else:
+                st.error("⚠️ 认证失败：账户名称或密钥错误！")
+    else:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("⚙️ 建立新量化档案", use_container_width=True):
+            if not username.strip() or not password.strip():
+                st.warning("⚠️ 账户名称和认证密钥不能为空！")
+            elif username in st.session_state.users_db:
+                st.error("⚠️ 该账户名称已被其他彩友注册！")
+            else:
+                st.session_state.users_db[username] = password
+                st.success("✅ 档案建立成功！切换至登录模式即可进入。")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ==============================================================
+# 💬 社区群聊大厅组件 (高防爆内嵌面板)
+# ==============================================================
+def render_chat_lobby():
+    st.markdown(
+        "<div style='background: var(--secondary-background-color); border: 1px solid rgba(128,128,128,0.2); padding: 15px; border-radius: 6px; border-top: 3px solid #ff9800;'>",
+        unsafe_allow_html=True)
+    st.markdown(
+        "<h4 style='color:#ff9800; margin-top:0; margin-bottom:10px; font-size:15px;'>💬 LottoTech 全球彩友高频群聊大厅</h4>",
+        unsafe_allow_html=True)
+
+    # 核心高防爆滚动聊天视窗 (锁定高度为 350px)
+    chat_box_html = []
+    for msg in st.session_state.chat_messages:
+        is_me = (msg['user'] == st.session_state.current_user)
+        user_color = "#00bcd4" if is_me else "#FF7F50"
+        bg_style = "rgba(0,188,212,0.05)" if is_me else "rgba(255,255,255,0.02)"
+
+        chat_box_html.append(
+            f"<div style='margin-bottom:10px; padding:8px 12px; background:{bg_style}; border-radius:4px; border-left:3px solid {user_color};'>"
+            f"<span style='color:{user_color}; font-weight:bold; font-size:12px;'>{msg['user']}</span> "
+            f"<span style='color:#666; font-size:10px;'>[{msg['time']}]</span><br/>"
+            f"<span style='color:var(--text-color); font-size:13px; display:inline-block; margin-top:4px;'>{msg['text']}</span>"
+            f"</div>"
+        )
+
+    full_chat_html = (
+        f"<div style='max-height: 320px; min-height:320px; overflow-y: auto; padding-right:5px; scrollbar-width: thin;'>"
+        f"{''.join(chat_box_html)}"
+        f"</div>"
+    )
+    st.markdown(full_chat_html, unsafe_allow_html=True)
+    st.markdown("---")
+
+    # 底部聊天发送区
+    c_input, c_send = st.columns([8.5, 1.5])
+    with c_input:
+        user_msg = st.text_input("聊聊今天的指标走势...", key="chat_input_text", label_visibility="collapsed",
+                                 placeholder="发送聊天内容...")
+    with c_send:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("发送", key="chat_send_btn") and user_msg.strip():
+            import datetime
+            now_time = datetime.datetime.now().strftime("%H:%M")
+            # 存入聊天列表
+            st.session_state.chat_messages.append({
+                "user": st.session_state.current_user,
+                "time": now_time,
+                "text": user_msg.strip()
+            })
+            # 环形控制：限制最多保留100条消息防止撑破内存
+            if len(st.session_state.chat_messages) > 100:
+                st.session_state.chat_messages.pop(0)
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ==============================================================
+# 🖼️ 新增：群聊图片上传专属轻量化弹窗
+# ==============================================================
+@st.dialog("发送图片", width="small")
+def image_upload_modal():
+    st.markdown("<div style='font-size:14px; font-weight:bold; margin-bottom:10px;'>请选择要发送的图片：</div>",
+                unsafe_allow_html=True)
+    img_file = st.file_uploader("图片上传", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
+
+    if img_file is not None:
+        st.markdown("<hr style='margin:15px 0; border-color:rgba(128,128,128,0.15);'>", unsafe_allow_html=True)
+        if st.button("🚀 确认发送", type="primary", use_container_width=True):
+            import datetime, base64
+            now = datetime.datetime.now().strftime("%H:%M")
+            u_profile = st.session_state.users_data[st.session_state.current_user]
+            bytes_data = img_file.read()
+            b64_img = base64.b64encode(bytes_data).decode()
+            src_data = f"data:image/{img_file.type.split('/')[-1]};base64,{b64_img}"
+            st.session_state.chat_pool.append({
+                "user": st.session_state.current_user,
+                "nick": u_profile['nick'],
+                "avatar": u_profile['avatar'],
+                "time": now,
+                "type": "image",
+                "content": src_data
+            })
+            st.rerun()
+
+
+# ==============================================================
+# 💎 社区全维组件 A：微信级图文群聊大厅大面板
+# ==============================================================
+def render_wechat_lobby():
+    st.markdown("<h3 style='color:#ff9800; margin-top:0;'>💬 核心特权区：全球彩友沟通大厅</h3>", unsafe_allow_html=True)
+
+    # 微信风深色系聊天流沙盒容器
+    chat_stream_html = []
+    for msg in st.session_state.chat_pool:
+        is_me = (msg['user'] == st.session_state.current_user)
+        avatar_side = "margin-left:10px;" if is_me else "margin-right:10px;"
+        bubble_bg = "background:#267dff; color:white; border-radius:12px 2px 12px 12px;" if is_me else "background:rgba(255,255,255,0.06); color:var(--text-color); border-radius:2px 12px 12px 12px;"
+
+        bubble_content = ""
+        if msg['type'] == "text":
+            # 🎯 修复1：去掉 break-all，改为 break-word + pre-wrap + text-align:left + min-width，彻底解决文字竖排挤压问题！
+            bubble_content = f"<div style='padding:10px 14px; {bubble_bg} word-wrap:break-word; white-space:pre-wrap; text-align:left; min-width:30px; font-size:14px;'>{msg['content']}</div>"
+        elif msg['type'] == "image":
+            bubble_content = f"<div style='padding:4px; {bubble_bg} max-width:60%;'><img src='{msg['content']}' style='border-radius:6px; max-width:100%; display:block;' /></div>"
+
+        # 拼接单行微信卡片
+        item_html = f"<div style='display:flex; justify-content:{'flex-end' if is_me else 'flex-start'}; align-items:flex-start; margin-bottom:15px; width:100%;'>"
+        if not is_me: item_html += f"<div style='font-size:24px; {avatar_side}'>{msg['avatar']}</div>"
+        item_html += f"<div style='display:flex; flex-direction:column; align-items:{'flex-end' if is_me else 'flex-start'}; max-width:80%;'>"
+        item_html += f"<span style='font-size:11px; color:#888; margin-bottom:3px;'>{msg['nick']} <span style='color:#555;'>{msg['time']}</span></span>"
+        item_html += bubble_content
+        item_html += "</div>"
+        if is_me: item_html += f"<div style='font-size:24px; {avatar_side}'>{msg['avatar']}</div>"
+        item_html += "</div>"
+
+        chat_stream_html.append(item_html)
+
+    # 固定微信大厅视窗高度为 500px，自带流畅滚动
+    full_html = "<div style='background:var(--secondary-background-color); border:1px solid rgba(128,128,128,0.15); border-radius:8px; padding:20px; max-height:500px; min-height:500px; overflow-y:auto; scrollbar-width:thin;'>" + "".join(
+        chat_stream_html) + "</div>"
+    st.markdown(full_html, unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+
+    # 🎯 修复2：剥离大面积文件上传组件，利用 form 表单实现“回车发送+发后自动清空”
+    c_form, c_plus = st.columns([9.2, 0.8])
+    with c_form:
+        # 开启 clear_on_submit，按下回车直接发送，发完框内文本自动消失！
+        with st.form(key="chat_input_form", clear_on_submit=True, border=False):
+            c_input, c_send = st.columns([8.5, 1.5])
+            with c_input:
+                text_content = st.text_input("输入", label_visibility="collapsed",
+                                             placeholder="跟志同道合的彩友聊两句... (按回车直接发送)")
+            with c_send:
+                btn_send = st.form_submit_button("发送", use_container_width=True)
+
+            if btn_send and text_content.strip():
+                import datetime
+                now = datetime.datetime.now().strftime("%H:%M")
+                u_profile = st.session_state.users_data[st.session_state.current_user]
+                st.session_state.chat_pool.append(
+                    {"user": st.session_state.current_user, "nick": u_profile['nick'], "avatar": u_profile['avatar'],
+                     "time": now, "type": "text", "content": text_content.strip()})
+                st.rerun()
+
+    with c_plus:
+        # 独立的轻量化 ➕ 号按钮，点击后优雅唤醒图片上传悬浮窗
+        if st.button("➕", key="open_upload_modal", use_container_width=True):
+            image_upload_modal()
+# ==============================================================
+# 💎 修复重构：个人资料中心（修复弹窗按钮水平并齐 + 精简文本）
+# ==============================================================
+@st.dialog("修改个人信息", width="small")
+def edit_info_field_modal(field_key, label_name):
+    """为特定字段定制的极简安全修改弹窗（彻底修复确认/取消错位问题）"""
+    curr_uid = st.session_state.current_user
+    current_value = st.session_state.users_data[curr_uid].get(field_key, "")
+
+    st.markdown(f"<div style='font-size:14px; font-weight:bold; margin-bottom:15px;'>请输入新的{label_name}：</div>",
+                unsafe_allow_html=True)
+
+    if field_key == "pwd":
+        new_val = st.text_input(label_name, value=current_value, type="password", label_visibility="collapsed")
+    else:
+        new_val = st.text_input(label_name, value=current_value, label_visibility="collapsed")
+
+    st.markdown("<hr style='margin:15px 0; border-color:rgba(128,128,128,0.15);'>", unsafe_allow_html=True)
+
+    # 🎯 关键修复：用平级的 columns 容器容纳两个按钮，强杀一高一低的上下错位！
+    _, c_cancel, c_ok = st.columns([6, 2, 2])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("取消", key="cancel_edit_field"):
+            st.rerun()
+    with c_ok:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if st.button("确认", key="confirm_edit_field"):
+            if not new_val.strip():
+                st.error("⚠️ 字段不能为空！")
+            else:
+                st.session_state.users_data[curr_uid][field_key] = new_val.strip()
+                if field_key in ["nick", "avatar"]:
+                    for msg in st.session_state.chat_pool:
+                        if msg["user"] == curr_uid:
+                            msg[field_key] = new_val.strip()
+                st.toast(f"✅ {label_name} 修改已成功实时下沉同步！")
+                st.rerun()
+
+
+def render_user_profile():
+    st.markdown("<h3 style='color:#00bcd4; margin-top:0;'>成员身份管理中心</h3>", unsafe_allow_html=True)
+    curr_uid = st.session_state.current_user
+
+    if "pwd" not in st.session_state.users_data[curr_uid]: st.session_state.users_data[curr_uid]["pwd"] = "123456"
+    if "phone" not in st.session_state.users_data[curr_uid]: st.session_state.users_data[curr_uid][
+        "phone"] = "13888888888"
+
+    profile = st.session_state.users_data[curr_uid]
+
+    with st.container(border=True):
+        st.markdown(f"<h4>量化尊享账户名：<span style='color:#00bcd4;'>{curr_uid}</span></h4>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin:10px 0; border-color:rgba(128,128,128,0.15);'>", unsafe_allow_html=True)
+
+        c_av, c_bio = st.columns([3, 7])
+        with c_av:
+            new_avatar = st.selectbox("个性头像", ["🦖", "⚡", "🔮", "👑", "🎯", "🍀", "💎"],
+                                      index=["🦖", "⚡", "🔮", "👑", "🎯", "🍀", "💎"].index(profile.get('avatar', '🔮')))
+            if new_avatar != profile.get('avatar'):
+                st.session_state.users_data[curr_uid]['avatar'] = new_avatar
+                for msg in st.session_state.chat_pool:
+                    if msg["user"] == curr_uid: msg["avatar"] = new_avatar
+                st.rerun()
+        with c_bio:
+            new_bio = st.text_input("选号格言：", value=profile.get('bio', ''))
+            if new_bio != profile.get('bio'):
+                st.session_state.users_data[curr_uid]['bio'] = new_bio
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        def render_profile_row(label, display_value, field_key):
+            c_txt, c_btn = st.columns([8.5, 1.5])
+            with c_txt:
+                st.markdown(f"<div style='line-height:34px; font-size:14px;'>🔹 {label}：<b>{display_value}</b></div>",
+                            unsafe_allow_html=True)
+            with c_btn:
+                st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+                if st.button("修改", key=f"edit_click_{field_key}"):
+                    edit_info_field_modal(field_key, label)
+
+        render_profile_row("用户昵称", profile['nick'], "nick")
+        render_profile_row("登录密码", "••••••", "pwd")
+        render_profile_row("绑定手机", profile['phone'], "phone")
+
+
+# ==============================================================
+# 💎 账户登录与注册中心大门 (内嵌弹窗版)
+# ==============================================================
+@st.dialog("LottoTech 账户管理中心", width="small")
+def user_auth_dialog():
+    mode = st.radio("切换行为", ["账户登录", "全新注册"], horizontal=True, label_visibility="collapsed")
+    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+    username = st.text_input("👤 输入账户名称：", placeholder="请输入用户名")
+    password = st.text_input("🔒 输入认证密钥：", type="password", placeholder="请输入密码")
+
+    st.markdown("<hr style='margin:15px 0; border-color:rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_ok = st.columns([6, 2, 2])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("关闭"): st.rerun()
+    with c_ok:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if mode == "账户登录":
+            if st.button("确认登录"):
+                if username in st.session_state.users_data and st.session_state.users_data[username]['pwd'] == password:
+                    st.session_state.current_user = username
+                    st.toast(f"🎉 登录成功！已解锁沟通大厅通道！")
+                    st.rerun()
+                else:
+                    st.error("⚠️ 用户名或密码有误")
+        else:
+            if st.button("确认注册"):
+                if not username.strip() or not password.strip():
+                    st.warning("⚠️ 字段不能为空")
+                elif username in st.session_state.users_data:
+                    st.error("⚠️ 该用户名已被占用")
+                else:
+                    st.session_state.users_data[username] = {"pwd": password, "nick": username, "avatar": "🔮",
+                                                             "bio": "新选号彩友", "phone": "未绑定"}
+                    st.session_state.current_user = username
+                    st.toast("✅ 账号注册成功并自动登录！")
+                    st.rerun()
+
+
+# ==============================================================
+# 💎 社区全维组件 C：顶层右上角多态浮动状态灯与认证弹窗
+# ==============================================================
+@st.dialog("LottoTech 账户管理中心", width="small")
+def user_auth_dialog():
+    mode = st.radio("切换行为", ["账户登录", "全新注册"], horizontal=True, label_visibility="collapsed")
+    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+    username = st.text_input("👤 输入账户名称：", placeholder="请输入用户名")
+    password = st.text_input("🔒 输入认证密钥：", type="password", placeholder="请输入密码")
+
+    st.markdown("<hr style='margin:15px 0; border-color:rgba(128,128,128,0.2);'>", unsafe_allow_html=True)
+    _, c_cancel, c_ok = st.columns([6, 2, 2])
+    with c_cancel:
+        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+        if st.button("关闭"): st.rerun()
+    with c_ok:
+        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+        if mode == "账户登录":
+            if st.button("确认登录"):
+                if username in st.session_state.users_data and st.session_state.users_data[username]['pwd'] == password:
+                    st.session_state.current_user = username
+                    st.toast(f"🎉 登录成功！已解锁沟通大厅通道！")
+                    st.rerun()
+                else:
+                    st.error("⚠️ 用户名或密码有误")
+        else:
+            if st.button("确认注册"):
+                if not username.strip() or not password.strip():
+                    st.warning("⚠️ 字段不能为空")
+                elif username in st.session_state.users_data:
+                    st.error("⚠️ 该用户名已被占用")
+                else:
+                    st.session_state.users_data[username] = {"pwd": password, "nick": username, "avatar": "🔮",
+                                                             "bio": "新加入的量化彩友。"}
+                    st.session_state.current_user = username
+                    st.toast("✅ 账号注册成功并自动登录！")
+                    st.rerun()
+def main():
+    # ----------------- 1. 动态构筑主导航菜单项 -----------------
+    main_options = ['首页', '大乐透', '双色球', '过滤缩水工具']
+    if st.session_state.current_user is not None:
+        main_options.append('沟通大厅')
+
+    # ==============================================================
+    # 🌟 核心升级：120px 极简同行切分 (右上角净化显示为“用户中心”)
+    # ==============================================================
+    c_main_tabs, c_right_auth = st.columns([10.4, 1.6])
+
+    with c_main_tabs:
+        # 强制大通铺平铺横向大展开
+        if st.session_state.main_nav == "用户信息中心":
+            selected_main = st.radio("主导航", main_options, index=0, horizontal=True, label_visibility="collapsed")
+        else:
+            selected_main = st.radio("主导航", main_options, index=main_options.index(
+                st.session_state.main_nav) if st.session_state.main_nav in main_options else 0,
+                                     horizontal=True, label_visibility="collapsed")
+
+    with c_right_auth:
+        if st.session_state.current_user is None:
+            # 游客状态下：小巧利落的登录按钮，完全并行靠右
+            st.markdown('<div class="is-rect-btn is-rect-btn-active" style="height:26px; margin-top:2px;"></div>',
+                        unsafe_allow_html=True)
+            if st.button("登录 / 注册", key="floating_login_btn", use_container_width=True):
+                user_auth_dialog()
+        else:
+            # 🎯 核心修复：用户登录后，抛弃多余前缀，干干净净高亮展示为“用户中心”
+            st.markdown('<div class="is-rect-btn is-rect-btn-inactive" style="height:26px; margin-top:2px;"></div>',
+                        unsafe_allow_html=True)
+            if st.button("用户中心", key="floating_user_btn", use_container_width=True):
+                st.session_state.main_nav = "用户信息中心"
+                st.rerun()
+
+    # ----------------- 2. 条件更新流 -----------------
+    if st.session_state.main_nav != "用户信息中心":
+        if selected_main != st.session_state.main_nav:
+            st.session_state.main_nav = selected_main
+            st.session_state.show_results = False
 
     st.markdown("<hr style='margin: 0px 0 15px 0; border-color: #333;' />", unsafe_allow_html=True)
 
@@ -2392,7 +4277,7 @@ def main():
                 else:
                     st.warning(f"🚧 模块【{st.session_state.sub_nav}】代码暂未上传，等待融合接入。")
 
-    # ----------------- 过滤缩水工具 -----------------
+        # ----------------- 过滤缩水工具 -----------------
     elif st.session_state.main_nav == '过滤缩水工具':
         filter_opts = ["大乐透过滤工具", "双色球过滤工具"]
         curr_filter = f"{st.session_state.lottery_type}过滤工具"
@@ -2416,45 +4301,1040 @@ def main():
             f"<div style='font-size: 16px; color: #888; margin: 10px 0 20px 0;'>你当前所在位置：{st.session_state.lottery_type}过滤缩水工具</div>",
             unsafe_allow_html=True)
 
-        col_left, col_right = st.columns([1, 2.5])
+        is_ssq = st.session_state.lottery_type == "双色球"
+        max_reds = 33 if is_ssq else 35
+
+        # ==============================================================
+        # 🌟 终极大盘排版：全屏死锁对齐，精准高度切分，告别全局向下滚动！
+        # ==============================================================
+        # 注入强效 CSS，杀掉默认的多余边距，让全盘更紧凑，阻止触发页面整体滚动
+        st.markdown("""
+                    <style>
+                    .main .block-container { padding-top: 1.5rem !important; padding-bottom: 0rem !important; max-width: 95% !important;}
+                    </style>
+                """, unsafe_allow_html=True)
+
+        col_left, col_right = st.columns([4, 6])
+
+        # -----------------------------------------------------------
+        # 🟢 左侧操控列 (Top: 340px, Bottom: 520px)
+        # -----------------------------------------------------------
         with col_left:
-            with st.container(border=True, height=600):
-                st.markdown(f"<h3 style='margin-top:0;'>{st.session_state.sub_nav}</h3>", unsafe_allow_html=True)
-                auto_mode = st.checkbox("让智能系统自动选择配置", key=f"auto_{st.session_state.sub_nav}")
-                input_val = st.text_input("或手动输入核心规则:", placeholder="输入参数规则",
-                                          key=f"input_{st.session_state.sub_nav}")
-                if st.button("➕ 添加到保留条件池", use_container_width=True):
-                    st.session_state.filter_conditions.append(
-                        {"module": st.session_state.sub_nav, "rule": "智能自动设定" if auto_mode else str(input_val)})
-
-        with col_right:
-            with st.container(border=True, height=250):
-                st.markdown("<div class='panel-title'>保留选择的条件展示窗口</div>", unsafe_allow_html=True)
-                for i, cond in enumerate(st.session_state.filter_conditions):
-                    c_tag, c_btn = st.columns([8, 1])
-                    c_tag.markdown(f"<div class='cart-item'><b>[{cond['module']}]</b> &nbsp; {cond['rule']}</div>",
-                                   unsafe_allow_html=True)
-                    if c_btn.button("❌", key=f"del_{i}"): st.session_state.filter_conditions.pop(i)
-
-            with st.container(border=True, height=330):
-                if st.session_state.show_results:
-                    mock_res = pd.DataFrame(
-                        {"序号": ["1"], "号码": ["01 02 03 04 05 + 06 07"], "和值": ["15"], "跨度": ["4"],
-                         "三区比": ["5:0:0"], "奇偶比": ["3:2"]})
-                    st_centered_df(mock_res, use_container_width=True, hide_index=True)
+            # 【左上框：大底选号区】
+            with st.container(height=340, border=True):
+                latest_res = get_latest_result(st.session_state.lottery_type)
+                if latest_res:
+                    r_str = " ".join([f"{r:02d}" for r in latest_res['reds']])
+                    b_str = " ".join([f"{b:02d}" for b in latest_res['blues']])
+                    st.markdown(
+                        f"""<div class="latest-draw-panel"><span style="font-size: 14px;">(最新奖号：</span><span style="color: #ff4b4b; font-weight: bold; font-size: 14px;">期号：{latest_res['period']}， {r_str}</span><span style="font-size: 14px;"> + </span><span style="color: #00bcd4; font-weight: bold; font-size: 14px;">{b_str}</span><span style="font-size: 14px;">)</span></div>""",
+                        unsafe_allow_html=True)
                 else:
-                    empty_res = pd.DataFrame(columns=["序号", "号码", "和值", "跨度", "三区比", "奇偶比"])
-                    st_centered_df(empty_res, use_container_width=True, hide_index=True)
-                    st.markdown("<p style='color:#888; text-align:center; margin-top:-150px;'>过滤缩水结果展示区域</p>",
+                    st.markdown(
+                        f"""<div class="latest-draw-panel"><span style="font-size: 14px; color: #bbb;">(最新奖号：暂无数据，请检查 {st.session_state.lottery_type}.xlsx 文件)</span></div>""",
+                        unsafe_allow_html=True)
+
+                tab_opts = ["双色球", "尾数123位", "尾数234位", "尾数345位", "尾数456位"] if is_ssq else ["大乐透",
+                                                                                                          "尾数123位",
+                                                                                                          "尾数234位",
+                                                                                                          "尾数345位"]
+                selected_top = st.radio("大底分组", tab_opts, horizontal=True, label_visibility="collapsed")
+                if selected_top != st.session_state.active_top_tab:
+                    st.session_state.active_top_tab = selected_top
+                    st.rerun()
+
+                if st.session_state.active_top_tab in ["大乐透", "双色球"]:
+                    st.markdown("<div style='font-size:14px; margin:10px 0;'>选择红球</div>", unsafe_allow_html=True)
+                    sel_list = st.session_state.selected_reds_ssq if is_ssq else st.session_state.selected_reds_dlt
+                    rows = [range(1, 14), range(14, 27), range(27, max_reds + 1)]
+                    for row_idx, r_range in enumerate(rows):
+                        cols = st.columns(13)
+                        for i, num in enumerate(r_range):
+                            b_str = f"{num:02d}"
+                            marker = "is-ball-active" if b_str in sel_list else "is-ball-inactive"
+                            with cols[i]:
+                                st.markdown(f'<div class="is-ball {marker}"></div>', unsafe_allow_html=True)
+                                st.button(b_str, key=f"r_{b_str}", on_click=toggle_red, args=(b_str, is_ssq))
+                        if row_idx == 2:
+                            with cols[10]:
+                                st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>',
+                                            unsafe_allow_html=True)
+                                st.button("全", key="r_all", on_click=select_all_red, args=(is_ssq,))
+                            with cols[11]:
+                                st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>',
+                                            unsafe_allow_html=True)
+                                st.button("清", key="r_clear", on_click=clear_all_red, args=(is_ssq,))
+                else:
+                    st.markdown("""
+                                <style>
+                                div.element-container:has(.is-tail-ball) + div.element-container div[data-testid="stButton"] button {
+                                    width: 32px !important; height: 32px !important; min-height: 32px !important; border-radius: 50% !important; padding: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto !important;
+                                }
+                                div.element-container:has(.is-tail-ball-active) + div.element-container div[data-testid="stButton"] button {
+                                    background: radial-gradient(circle at 30% 30%, #ff5b5b 0%, #d32f2f 50%, #9a0000 100%) !important; color: white !important; border: none !important; box-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important;
+                                }
+                                div.element-container:has(.is-tail-ball-inactive) + div.element-container div[data-testid="stButton"] button {
+                                    background: radial-gradient(circle at 30% 30%, var(--background-color) 0%, var(--secondary-background-color) 100%) !important; color: #d32f2f !important; border: 1px solid rgba(128,128,128,0.3) !important; box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important;
+                                }
+                                div.element-container:has(.is-tail-ball) + div.element-container div[data-testid="stButton"] button p { font-size: 14px !important; font-weight: bold !important; white-space: nowrap !important; margin: 0 !important; }
+
+                                div.element-container:has(.is-tail-rect) + div.element-container div[data-testid="stButton"] button {
+                                    width: 100% !important; height: 32px !important; min-height: 32px !important; border-radius: 4px !important; margin: 0 auto !important; padding: 0px 2px !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                                }
+                                div.element-container:has(.is-tail-rect-active) + div.element-container div[data-testid="stButton"] button { background: #d32f2f !important; color: white !important; border: 1px solid #b71c1c !important; }
+                                div.element-container:has(.is-tail-rect-inactive) + div.element-container div[data-testid="stButton"] button { background: var(--background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128,128,128,0.3) !important; }
+                                div.element-container:has(.is-tail-rect) + div.element-container div[data-testid="stButton"] button p { font-size: 12px !important; white-space: nowrap !important; margin: 0 !important; }
+                                </style>
+                            """, unsafe_allow_html=True)
+
+                    nums = [int(x) for x in st.session_state.active_top_tab if x.isdigit()]
+                    for pos in nums:
+                        cols = st.columns([1.6] + [0.65] * 10 + [0.65, 0.65] + [1.5, 1.5])
+                        with cols[0]:
+                            st.markdown('<div class="is-tail-ball"></div>', unsafe_allow_html=True)
+                            st.markdown(
+                                f"<div style='font-size:14px; font-weight:bold; white-space:nowrap; line-height:32px;'>{pos}位尾数：</div>",
                                 unsafe_allow_html=True)
 
-        st.markdown("<br />", unsafe_allow_html=True)
-        c_btn1, c_btn2, c_btn3 = st.columns([1.5, 7, 1.5])
-        with c_btn1:
-            pass
-        with c_btn3:
-            if st.button("⚡ 执行过滤", type="primary", use_container_width=True):
-                st.session_state.show_results = True
+                        for i in range(10):
+                            val = str(i)
+                            is_sel = val in st.session_state[f'tail_{pos}']
+                            marker = "is-tail-ball-active" if is_sel else "is-tail-ball-inactive"
+                            with cols[i + 1]:
+                                st.markdown(f'<div class="is-tail-ball {marker}"></div>', unsafe_allow_html=True)
+                                st.button(val, key=f"t_{pos}_{i}", on_click=toggle_tail, args=(pos, val))
+
+                        with cols[11]:
+                            is_all_sel = len(st.session_state[f'tail_{pos}']) == 10
+                            st.markdown(
+                                f'<div class="is-tail-rect {"is-tail-rect-active" if is_all_sel else "is-tail-rect-inactive"}"></div>',
+                                unsafe_allow_html=True)
+                            st.button("全", key=f"t_all_{pos}", on_click=select_all_tail, args=(pos,))
+                        with cols[12]:
+                            st.markdown('<div class="is-tail-rect is-tail-rect-inactive"></div>',
+                                        unsafe_allow_html=True)
+                            st.button("清", key=f"t_clear_{pos}", on_click=clear_tail, args=(pos,))
+                        with cols[13]:
+                            st.markdown('<div class="is-tail-rect is-tail-rect-active"></div>', unsafe_allow_html=True)
+                            if st.button("保留", key=f"t_keep_line_{pos}"):
+                                arr = st.session_state[f'tail_{pos}']
+                                if arr: add_condition("红球-尾数定位",
+                                                      f"{pos}位尾数 保留: [{','.join(arr)}]"); st.rerun()
+                        with cols[14]:
+                            st.markdown('<div class="is-tail-rect is-tail-rect-inactive"></div>',
+                                        unsafe_allow_html=True)
+                            if st.button("排除", key=f"t_ex_line_{pos}"):
+                                arr = st.session_state[f'tail_{pos}']
+                                if arr: add_condition("红球-尾数定位",
+                                                      f"{pos}位尾数 排除: [{','.join(arr)}]"); st.rerun()
+
+                    st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+                    c_sp, c_conf = st.columns([11.5, 2.3])
+                    with c_conf:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                        if st.button("确认提交", key="t_global_bulk_confirm", use_container_width=True):
+                            has_added = False
+                            for pos in nums:
+                                arr = st.session_state[f'tail_{pos}']
+                                if arr:
+                                    st.session_state.filter_conditions.append(
+                                        {"module": "红球-尾数定位", "rule": f"{pos}位尾数 保留: [{','.join(arr)}]"})
+                                    has_added = True
+                            if has_added: st.rerun()
+
+            # 【左下框：专属条件激活台】
+            with st.container(height=520, border=True):
+                # 🎯 净化文本：去除 🧩 图标
+                st.markdown(
+                    f"<div style='font-weight:bold; margin-bottom:15px; font-size:16px; color:#00bcd4;'>条件选项</div>",
+                    unsafe_allow_html=True)
+
+                if st.session_state.sub_nav == "红球定位":
+                    if "尾数" not in st.session_state.active_top_tab:
+                        c1, _, _, _ = st.columns(4)
+                        with c1:
+                            st.markdown('<div class="is-module-btn"></div>', unsafe_allow_html=True)
+                            if st.button("定 位", key="btn_trigger_pos"): position_filter_modal(
+                                st.session_state.active_top_tab, is_ssq)
+                    else:
+                        c1, c2, c3, _ = st.columns([1, 1, 1, 1])
+                        with c1:
+                            st.markdown('<div class="is-module-btn"></div>', unsafe_allow_html=True)
+                            if st.button("定 位", key="btn_trigger_pos_tail"): position_filter_modal(
+                                st.session_state.active_top_tab, is_ssq)
+                        with c2:
+                            st.markdown('<div class="is-module-btn"></div>', unsafe_allow_html=True)
+                            if st.button("大 小", key="btn_trigger_size"): size_filter_modal(
+                                [int(x) for x in st.session_state.active_top_tab if x.isdigit()])
+                        with c3:
+                            st.markdown('<div class="is-module-btn"></div>', unsafe_allow_html=True)
+                            if st.button("和值振幅", key="btn_trigger_amp"): amp_filter_modal()
+
+                    st.markdown("<hr style='margin:20px 0 10px 0; border-color: rgba(128,128,128,0.2);'>",
+                                unsafe_allow_html=True)
+                    st.markdown(
+                        "<div style='font-size:14px; font-weight:bold; margin-bottom:10px; color:#00bcd4;'>冷热温号提示</div>",
+                        unsafe_allow_html=True)
+
+                    pos_max = 7 if is_ssq else 6
+                    stat_cols = st.columns(pos_max - 1)
+                    for i in range(1, pos_max):
+                        with stat_cols[i - 1]:
+                            is_active = (st.session_state.active_stats_pos == i)
+                            marker = "is-rect-btn-active" if is_active else "is-rect-btn-inactive"
+                            st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                            if st.button(f"第 {i} 位",
+                                         key=f"stat_pos_{i}"): st.session_state.active_stats_pos = i; st.rerun()
+
+                    curr_p = st.session_state.active_stats_pos
+                    df_filter = get_full_detailed_data(st.session_state.lottery_type)
+                    if not df_filter.empty:
+                        col_name = f'r{curr_p}'
+                        counts = df_filter[col_name].value_counts().reindex(range(1, max_reds + 1), fill_value=0)
+                        sorted_ns = sorted(range(1, max_reds + 1), key=lambda x: counts[x], reverse=True)
+                        n_hot, n_cold = int(len(sorted_ns) * 0.3), int(len(sorted_ns) * 0.3)
+                        hot_nums = sorted(sorted_ns[:n_hot])
+                        warm_nums = sorted(sorted_ns[n_hot:len(sorted_ns) - n_cold])
+                        cold_nums = sorted(sorted_ns[-n_cold:])
+                        hot_str = ", ".join([f"{x:02d}" for x in hot_nums])
+                        warm_str = ", ".join([f"{x:02d}" for x in warm_nums])
+                        cold_str = ", ".join([f"{x:02d}" for x in cold_nums])
+                    else:
+                        hot_str, warm_str, cold_str = "暂无数据", "暂无数据", "暂无数据"
+
+                    st.markdown(f"""
+                                   <div class="radar-panel">
+                                       <div style='color:#ff4b4b; margin-bottom:8px; font-size:14px;'><b>🔥 热号 (高频爆发)：</b> {hot_str}</div>
+                                       <div style='color:#f9d71c; margin-bottom:8px; font-size:14px;'><b>☀️ 温号 (平稳周期)：</b> {warm_str}</div>
+                                       <div style='color:#4da6ff; margin-bottom:8px; font-size:14px;'><b>❄️ 冷号 (长期冰封)：</b> {cold_str}</div>
+                                   </div>
+                                   """, unsafe_allow_html=True)
+
+                elif st.session_state.sub_nav == "奖项区间波动":
+                    c1, c2, _ = st.columns([1.5, 1.5, 1])
+                    with c1:
+                        st.markdown('<div class="is-module-btn"></div>', unsafe_allow_html=True)
+                        if st.button("设置奖项波动区间", key="btn_trigger_prize"): prize_fluctuation_modal(is_ssq)
+                    with c2:
+                        st.markdown('<div class="is-module-btn"></div>', unsafe_allow_html=True)
+                        if st.button("自选号码深度评测", key="btn_trigger_eval"): custom_number_eval_modal(is_ssq)
+                    st.markdown("<hr style='margin:20px 0 10px 0; border-color: rgba(128,128,128,0.2);'>",
+                                unsafe_allow_html=True)
+                    st.info("提示：调用底层矩阵引擎，直接过滤掉历史上已开出某等奖的组合，或根据伴生奖项区间进行精算拦截！")
+
+                elif st.session_state.sub_nav == "AC值":
+                    max_ac_val = 10 if is_ssq else 6
+                    opts_nums = [str(x) for x in range(max_ac_val + 1)]
+                    ideal_range = "4, 5, 6, 7, 8" if is_ssq else "2, 3, 4, 5"
+
+                    st.markdown(
+                        f"<div style='font-size:13px; color:#bbb; margin-bottom:15px; background:rgba(0,188,212,0.05); padding:10px; border-radius:4px; border-left:3px solid #00bcd4;'>💡 大盘提示：当前彩种最稳常态核心区间为：<b style='color:#00FF7F;'>[{ideal_range}]</b></div>",
+                        unsafe_allow_html=True)
+
+                    # 💎 AC值专属：智能全铺平齐对齐引擎 (完美治愈垂直错位)
+                    def render_inline_ac_row(label, opts, category, is_ball_style=False):
+                        actual_len = len(opts)
+
+                        # 🎯 数学级平齐切分：保持每一行的总列宽绝对相等 (12.05)
+                        if is_ball_style:
+                            pad_len = 11 - actual_len
+                            ratio = [2.5] + [0.65] * actual_len + [0.65] * pad_len + [1.2, 1.2]
+                        else:
+                            opt_ratio = 1.5
+                            pad_width = 7.15 - (actual_len * opt_ratio)
+                            ratio = [2.5] + [opt_ratio] * actual_len + [pad_width] + [1.2, 1.2]
+
+                        cols = st.columns(ratio)
+
+                        with cols[0]:
+                            if is_ball_style:
+                                # 球体行：垫入隐藏球体，行高锁死 38px
+                                st.markdown('<div class="is-ball"></div>', unsafe_allow_html=True)
+                                st.markdown(
+                                    f"<div style='font-weight:bold; font-size:14px; white-space:nowrap; line-height:38px;'>{label}</div>",
+                                    unsafe_allow_html=True)
+                            else:
+                                # 方框行：垫入隐藏方框，行高锁死 30px
+                                st.markdown('<div class="is-rect-btn"></div>', unsafe_allow_html=True)
+                                st.markdown(
+                                    f"<div style='font-weight:bold; font-size:14px; white-space:nowrap; line-height:30px;'>{label}</div>",
+                                    unsafe_allow_html=True)
+
+                        for j, opt in enumerate(opts):
+                            is_sel = opt in st.session_state.temp_sets.get(category, [])
+                            with cols[j + 1]:
+                                if is_ball_style:
+                                    marker = "is-ball-active" if is_sel else "is-ball-inactive"
+                                    st.markdown(f'<div class="is-ball {marker}"></div>', unsafe_allow_html=True)
+                                else:
+                                    marker = "is-rect-btn-active" if is_sel else "is-rect-btn-inactive"
+                                    st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                                st.button(opt, key=f"inl_{category}_{opt}", on_click=toggle_temp_set,
+                                          args=(category, opt))
+
+                        with cols[-2]:
+                            # 🎯 高度补偿：如果是球体(38px)，按钮(30px)必须下沉 4px 才能绝对居中平齐
+                            mt = 'style="margin-top:4px;"' if is_ball_style else ''
+                            st.markdown(f'<div class="is-rect-btn is-rect-btn-active" {mt}></div>',
+                                        unsafe_allow_html=True)
+                            if st.button("保留", key=f"ink_{category}"):
+                                arr = st.session_state.temp_sets.get(category, [])
+                                if arr: add_condition("AC值", f"{label} 保留: [{','.join(arr)}]"); st.rerun()
+
+                        with cols[-1]:
+                            mt = 'style="margin-top:4px;"' if is_ball_style else ''
+                            st.markdown(f'<div class="is-rect-btn is-rect-btn-inactive" {mt}></div>',
+                                        unsafe_allow_html=True)
+                            if st.button("排除", key=f"ine_{category}"):
+                                arr = st.session_state.temp_sets.get(category, [])
+                                if arr: add_condition("AC值", f"{label} 排除: [{','.join(arr)}]"); st.rerun()
+
+                    render_inline_ac_row("AC值", opts_nums, "ac_val", True)
+                    render_inline_ac_row("AC值大小", ["大数", "小数"], "ac_bs", False)
+                    render_inline_ac_row("AC值奇偶", ["奇数", "偶数"], "ac_oe", False)
+                    render_inline_ac_row("AC值质合", ["质数", "合数"], "ac_pc", False)
+                    render_inline_ac_row("AC值大中小", ["大数", "中数", "小数"], "ac_bms", False)
+                    render_inline_ac_row("AC值012路", ["0路", "1路", "2路"], "ac_012", False)
+                    render_inline_ac_row("AC值升平降", ["升", "平", "降"], "ac_upd", False)
+                    render_inline_ac_row("AC值振幅", opts_nums, "ac_amp", True)
+
+                    # ================= 🎯 新增：最底部全局多选确认按钮 =================
+                    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    _, c_cancel, c_confirm = st.columns([7.5, 1.25, 1.25])
+                    with c_cancel:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+                        if st.button("取消", key="ac_global_cancel", use_container_width=True):
+                            for k in list(st.session_state.temp_sets.keys()):
+                                if k.startswith("ac_"): del st.session_state.temp_sets[k]
+                            st.rerun()
+                    with c_confirm:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                        if st.button("确认提交", key="ac_global_confirm", use_container_width=True):
+                            has_added = False
+                            ac_labels = {
+                                "ac_val": "AC值", "ac_bs": "AC值大小", "ac_oe": "AC值奇偶",
+                                "ac_pc": "AC值质合", "ac_bms": "AC值大中小", "ac_012": "AC值012路",
+                                "ac_upd": "AC值升平降", "ac_amp": "AC值振幅"
+                            }
+                            for k_cat, lbl in ac_labels.items():
+                                arr = st.session_state.temp_sets.get(k_cat, [])
+                                if arr:
+                                    st.session_state.filter_conditions.append(
+                                        {"module": "AC值", "rule": f"{lbl} 保留: [{','.join(arr)}]"})
+                                    has_added = True
+
+                            if has_added:
+                                for k in list(st.session_state.temp_sets.keys()):
+                                    if k.startswith("ac_"): del st.session_state.temp_sets[k]
+                                st.rerun()
+
+                elif st.session_state.sub_nav == "012路":
+                    st.markdown(
+                        f"<div style='font-size:13px; color:#bbb; margin-bottom:15px; background:rgba(0,188,212,0.05); padding:10px; border-radius:4px; border-left:3px solid #00bcd4;'>💡 大盘提示：012路即号码除以 3 的余数。精确拦截偏态余数分布，杀光冷门阵列！</div>",
+                        unsafe_allow_html=True)
+
+                    def render_inline_012_row(label, opts, category, chunk_size, opt_ratio):
+                        chunks = [opts[i:i + chunk_size] for i in range(0, len(opts), chunk_size)]
+                        for row_idx, chunk in enumerate(chunks):
+                            actual_len = len(chunk)
+                            pad_len = chunk_size - actual_len
+                            ratio = [2.5] + [opt_ratio] * actual_len + [opt_ratio] * pad_len + [1.2, 1.2]
+                            cols = st.columns(ratio)
+                            with cols[0]:
+                                if row_idx == 0:
+                                    st.markdown('<div class="is-rect-btn"></div>', unsafe_allow_html=True)
+                                    st.markdown(
+                                        f"<div style='font-weight:bold; font-size:14px; white-space:nowrap; line-height:30px;'>{label}</div>",
+                                        unsafe_allow_html=True)
+                            for j, opt in enumerate(chunk):
+                                is_sel = opt in st.session_state.temp_sets.get(category, [])
+                                marker = "is-rect-btn-active" if is_sel else "is-rect-btn-inactive"
+                                with cols[j + 1]:
+                                    st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                                    st.button(opt, key=f"inl_{category}_{opt}", on_click=toggle_temp_set,
+                                              args=(category, opt))
+                            if row_idx == len(chunks) - 1:
+                                with cols[-2]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("保留", key=f"ink_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("012路", f"{label} 保留: [{','.join(arr)}]"); st.rerun()
+                                with cols[-1]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("排除", key=f"ine_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("012路", f"{label} 排除: [{','.join(arr)}]"); st.rerun()
+
+                    red_n = 6 if is_ssq else 5
+                    for p in range(1, red_n + 1):
+                        render_inline_012_row(f"第{p}位012路", ["0路", "1路", "2路"], f"012_pos_{p}", chunk_size=3,
+                                              opt_ratio=1.5)
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    cnt_opts = [str(x) for x in range(red_n + 1)]
+                    render_inline_012_row("0路个数", cnt_opts, "012_c0", chunk_size=7, opt_ratio=0.8)
+                    render_inline_012_row("1路个数", cnt_opts, "012_c1", chunk_size=7, opt_ratio=0.8)
+                    render_inline_012_row("2路个数", cnt_opts, "012_c2", chunk_size=7, opt_ratio=0.8)
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    combos = []
+                    idx = 0
+                    for i in range(red_n, -1, -1):
+                        for j in range(red_n - i, -1, -1):
+                            k = red_n - i - j
+                            combos.append(f"{idx}: ({i}:{j}:{k})")
+                            idx += 1
+                    render_inline_012_row("012路个数排列", combos, "012_combo", chunk_size=5, opt_ratio=1.5)
+
+                    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    _, c_cancel, c_confirm = st.columns([7.5, 1.25, 1.25])
+                    with c_cancel:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+                        if st.button("取消", key="012_global_cancel", use_container_width=True):
+                            for k in list(st.session_state.temp_sets.keys()):
+                                if k.startswith("012_"): del st.session_state.temp_sets[k]
+                            st.rerun()
+                    with c_confirm:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                        if st.button("确认提交", key="012_global_confirm", use_container_width=True):
+                            has_added = False
+                            for p in range(1, red_n + 1):
+                                arr = st.session_state.temp_sets.get(f"012_pos_{p}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "012路",
+                                                                                   "rule": f"第{p}位012路 保留: [{','.join(arr)}]"}); has_added = True
+                            for c_type in ["c0", "c1", "c2"]:
+                                arr = st.session_state.temp_sets.get(f"012_{c_type}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "012路",
+                                                                                   "rule": f"{c_type[1]}路个数 保留: [{','.join(arr)}]"}); has_added = True
+                            combo_arr = st.session_state.temp_sets.get("012_combo", [])
+                            if combo_arr: st.session_state.filter_conditions.append({"module": "012路",
+                                                                                     "rule": f"012路个数排列 保留: [{','.join(combo_arr)}]"}); has_added = True
+                            if has_added:
+                                for k in list(st.session_state.temp_sets.keys()):
+                                    if k.startswith("012_"): del st.session_state.temp_sets[k]
+                                st.rerun()
+                # ==============================================================
+                # 🌟 全新打通：重号 (重跳新及历史落号) 独立综合操控台
+                # ==============================================================
+                elif st.session_state.sub_nav == "重号":
+                    red_n = 6 if is_ssq else 5
+
+                    # 💡 详细的新手使用说明卡片 (可折叠)
+                    with st.expander("💡 必看：【重·跳·新】与【历史落号】核心含义及实战法则", expanded=False):
+                        st.markdown(f"""
+                                        <div style="font-size:13px; color:#ddd; line-height:1.6;">
+                                            <b>1. 基础阵营定义：</b><br>
+                                            &nbsp;&nbsp;• <b style='color:#ff4b4b;'>重 (重号)</b>：上一期刚刚开出过的红球。<br>
+                                            &nbsp;&nbsp;• <b style='color:#f9d71c;'>跳 (跳号)</b>：上上期开出过，但上一期没开的红球（隔1期落号）。<br>
+                                            &nbsp;&nbsp;• <b style='color:#4da6ff;'>新 (新号)</b>：既不是重号，也不是跳号的其他所有遗漏号码。<br>
+                                            <b>2. 历史期内落号 (防巨冷冰封号)：</b><br>
+                                            &nbsp;&nbsp;• 根据二八定律，绝大多数当期开出的号码，都在过去20期内出现过。如果您在【20期内落号】中保留 `[4, 5]`（双色球为 `[5, 6]`），系统将强制要求每一注号码中，至少有 4个/5个 号码是最近20期内出现过的，从而一刀切掉全是万年冷号的垃圾大底！<br>
+                                            <b>3. 重跳新排列形态：</b>大乐透21种，双色球28种。代表一注号码中 (重号个数 : 跳号个数 : 新号个数) 的兵力结构。
+                                        </div>
+                                        """, unsafe_allow_html=True)
+
+                    # 💎 专属：智能多行自动折叠对齐引擎
+                    def render_inline_rjn_row(label, opts, category, chunk_size, opt_ratio):
+                        chunks = [opts[i:i + chunk_size] for i in range(0, len(opts), chunk_size)]
+                        for row_idx, chunk in enumerate(chunks):
+                            actual_len = len(chunk)
+                            pad_len = chunk_size - actual_len
+                            # 留给文字的标题列宽为 2.8，确保诸如"100期内落号"长文本绝不溢出
+                            ratio = [2.8] + [opt_ratio] * actual_len + [opt_ratio] * pad_len + [1.2, 1.2]
+                            cols = st.columns(ratio)
+
+                            with cols[0]:
+                                if row_idx == 0:
+                                    st.markdown('<div class="is-rect-btn"></div>', unsafe_allow_html=True)
+                                    st.markdown(
+                                        f"<div style='font-weight:bold; font-size:14px; white-space:nowrap; line-height:30px;'>{label}</div>",
+                                        unsafe_allow_html=True)
+
+                            for j, opt in enumerate(chunk):
+                                is_sel = opt in st.session_state.temp_sets.get(category, [])
+                                marker = "is-rect-btn-active" if is_sel else "is-rect-btn-inactive"
+                                with cols[j + 1]:
+                                    st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                                    st.button(opt, key=f"inl_{category}_{opt}", on_click=toggle_temp_set,
+                                              args=(category, opt))
+
+                            if row_idx == len(chunks) - 1:
+                                with cols[-2]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("保留", key=f"ink_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("重号", f"{label} 保留: [{','.join(arr)}]"); st.rerun()
+                                with cols[-1]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("排除", key=f"ine_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("重号", f"{label} 排除: [{','.join(arr)}]"); st.rerun()
+
+                    # 1. 独立位次 (重、跳、新)
+                    for p in range(1, red_n + 1):
+                        render_inline_rjn_row(f"第{p}位重跳新", ["重", "跳", "新"], f"rjn_pos_{p}", chunk_size=3,
+                                              opt_ratio=1.5)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+
+                    # 2. 个数统计
+                    cnt_opts = [str(x) for x in range(red_n + 1)]
+                    render_inline_rjn_row("重号个数", cnt_opts, "rjn_c_rep", chunk_size=7, opt_ratio=0.8)
+                    render_inline_rjn_row("跳号个数", cnt_opts, "rjn_c_jmp", chunk_size=7, opt_ratio=0.8)
+                    render_inline_rjn_row("新号个数", cnt_opts, "rjn_c_new", chunk_size=7, opt_ratio=0.8)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+
+                    # 3. 黄金防线：多期距落号数统计
+                    render_inline_rjn_row("20期内落号", cnt_opts, "rjn_h_20", chunk_size=7, opt_ratio=0.8)
+                    render_inline_rjn_row("30期内落号", cnt_opts, "rjn_h_30", chunk_size=7, opt_ratio=0.8)
+                    render_inline_rjn_row("50期内落号", cnt_opts, "rjn_h_50", chunk_size=7, opt_ratio=0.8)
+                    render_inline_rjn_row("100期内落号", cnt_opts, "rjn_h_100", chunk_size=7, opt_ratio=0.8)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+
+                    # 4. 终极杀器：重跳新个数排列 (自动推导 21 种或 28 种排列)
+                    combos = []
+                    idx = 0
+                    for i in range(red_n, -1, -1):
+                        for j in range(red_n - i, -1, -1):
+                            k = red_n - i - j
+                            combos.append(f"{idx}: ({i}:{j}:{k})")
+                            idx += 1
+                    render_inline_rjn_row("重跳新个数排列", combos, "rjn_combo", chunk_size=5, opt_ratio=1.5)
+
+                    # ================= 🎯 底部全局多选确认按钮 =================
+                    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    _, c_cancel, c_confirm = st.columns([7.5, 1.25, 1.25])
+                    with c_cancel:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+                        if st.button("取消", key="rjn_global_cancel", use_container_width=True):
+                            for k in list(st.session_state.temp_sets.keys()):
+                                if k.startswith("rjn_"): del st.session_state.temp_sets[k]
+                            st.rerun()
+                    with c_confirm:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                        if st.button("确认提交", key="rjn_global_confirm", use_container_width=True):
+                            has_added = False
+                            for p in range(1, red_n + 1):
+                                arr = st.session_state.temp_sets.get(f"rjn_pos_{p}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "重号",
+                                                                                   "rule": f"第{p}位重跳新 保留: [{','.join(arr)}]"}); has_added = True
+
+                            for c_type, label in [("rep", "重号"), ("jmp", "跳号"), ("new", "新号")]:
+                                arr = st.session_state.temp_sets.get(f"rjn_c_{c_type}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "重号",
+                                                                                   "rule": f"{label}个数 保留: [{','.join(arr)}]"}); has_added = True
+
+                            for n_p in [20, 30, 50, 100]:
+                                arr = st.session_state.temp_sets.get(f"rjn_h_{n_p}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "重号",
+                                                                                   "rule": f"{n_p}期内落号 保留: [{','.join(arr)}]"}); has_added = True
+
+                            combo_arr = st.session_state.temp_sets.get("rjn_combo", [])
+                            if combo_arr: st.session_state.filter_conditions.append({"module": "重号",
+                                                                                     "rule": f"重跳新个数排列 保留: [{','.join(combo_arr)}]"}); has_added = True
+
+                            if has_added:
+                                for k in list(st.session_state.temp_sets.keys()):
+                                    if k.startswith("rjn_"): del st.session_state.temp_sets[k]
+                                st.rerun()
+                # ==============================================================
+                # 🌟 全新打通：冷热温号 独立综合操控台
+                # ==============================================================
+                elif st.session_state.sub_nav == "冷热温号":
+                    red_n = 6 if is_ssq else 5
+
+                    # 1. 动态统计基准期数控制器
+                    st.markdown(
+                        "<div style='font-size:14px; font-weight:bold; margin-bottom:8px; color:#00bcd4;'>🎯 步骤一：选择测算冷热的基准期数</div>",
+                        unsafe_allow_html=True)
+                    period_opts = ["20期", "30期", "50期", "100期", "全量历史数据"]
+                    if 'hwc_period' not in st.session_state: st.session_state.hwc_period = "100期"
+                    st.session_state.hwc_period = st.radio("冷热基准", period_opts,
+                                                           index=period_opts.index(st.session_state.hwc_period),
+                                                           horizontal=True, label_visibility="collapsed")
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    st.markdown(
+                        "<div style='font-size:14px; font-weight:bold; margin-bottom:10px; color:#00bcd4;'>🎯 步骤二：配置各维度的拦截条件</div>",
+                        unsafe_allow_html=True)
+
+                    # 2. 💡 详细的新手使用说明卡片 (可折叠)
+                    with st.expander("💡 必看：【热·温·冷】定义说明及多周期实战法则", expanded=False):
+                        st.markdown(f"""
+                                        <div style="font-size:13px; color:#ddd; line-height:1.6;">
+                                            <b>1. 阵营定义 (基于选定的期数)：</b><br>
+                                            &nbsp;&nbsp;• 系统会将指定期数内红球的开出频次进行排兵布阵。<br>
+                                            &nbsp;&nbsp;• <b style='color:#ff4b4b;'>热码 (Top 30%)</b>：近期极其活跃，频繁开出的号。<br>
+                                            &nbsp;&nbsp;• <b style='color:#f9d71c;'>温码 (Middle 40%)</b>：不温不火，按常态周期平稳开出的号。<br>
+                                            &nbsp;&nbsp;• <b style='color:#4da6ff;'>冷码 (Bottom 30%)</b>：长期陷入冰封，极少甚至从未开出的号。<br>
+                                            <b>2. 实战法则：</b><br>
+                                            &nbsp;&nbsp;• <b>短线(20/30期)</b>：注重追热。短线大热必有直落，防守时热码个数建议卡在 2-4 个。<br>
+                                            &nbsp;&nbsp;• <b>长线(100/全量)</b>：注重均值回归。长线看的是绝对概率，可以精准打击极度偏离常态的组合形态。<br>
+                                            <b>3. 形态排列：</b>大乐透21种，双色球28种。代表一注号码中 (热:温:冷) 的绝对结构，排除极端态，收益翻倍！
+                                        </div>
+                                        """, unsafe_allow_html=True)
+
+                    # 💎 专属：智能多行自动折叠对齐引擎
+                    def render_inline_hwc_row(label, opts, category, chunk_size, opt_ratio):
+                        chunks = [opts[i:i + chunk_size] for i in range(0, len(opts), chunk_size)]
+                        for row_idx, chunk in enumerate(chunks):
+                            actual_len = len(chunk)
+                            pad_len = chunk_size - actual_len
+                            # 🎯 物理防溢出：为左侧标题保留 2.4 列宽，剩余大片空间全额交给按钮
+                            ratio = [2.4] + [opt_ratio] * actual_len + [opt_ratio] * pad_len + [1.2, 1.2]
+                            cols = st.columns(ratio)
+
+                            with cols[0]:
+                                if row_idx == 0:
+                                    st.markdown('<div class="is-rect-btn"></div>', unsafe_allow_html=True)
+                                    st.markdown(
+                                        f"<div style='font-weight:bold; font-size:14px; white-space:nowrap; line-height:30px;'>{label}</div>",
+                                        unsafe_allow_html=True)
+
+                            for j, opt in enumerate(chunk):
+                                is_sel = opt in st.session_state.temp_sets.get(category, [])
+                                marker = "is-rect-btn-active" if is_sel else "is-rect-btn-inactive"
+                                with cols[j + 1]:
+                                    st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                                    st.button(opt, key=f"inl_{category}_{opt}", on_click=toggle_temp_set,
+                                              args=(category, opt))
+
+                            if row_idx == len(chunks) - 1:
+                                with cols[-2]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("保留", key=f"ink_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("冷热温号",
+                                                              f"基准{st.session_state.hwc_period}_{label} 保留: [{','.join(arr)}]"); st.rerun()
+                                with cols[-1]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("排除", key=f"ine_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("冷热温号",
+                                                              f"基准{st.session_state.hwc_period}_{label} 排除: [{','.join(arr)}]"); st.rerun()
+
+                    # A. 独立位次 (热、温、冷)
+                    for p in range(1, red_n + 1):
+                        render_inline_hwc_row(f"第{p}位热温冷", ["热", "温", "冷"], f"hwc_pos_{p}", chunk_size=3,
+                                              opt_ratio=1.5)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+
+                    # B. 个数统计
+                    cnt_opts = [str(x) for x in range(red_n + 1)]
+                    render_inline_hwc_row("热码个数", cnt_opts, "hwc_c_hot", chunk_size=7, opt_ratio=0.8)
+                    render_inline_hwc_row("温码个数", cnt_opts, "hwc_c_warm", chunk_size=7, opt_ratio=0.8)
+                    render_inline_hwc_row("冷码个数", cnt_opts, "hwc_c_cold", chunk_size=7, opt_ratio=0.8)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+
+                    # C. 终极杀器：热温冷个数排列 (自动推导 21 种或 28 种完美中文案例文本)
+                    combos = []
+                    idx = 0
+                    for h in range(red_n, -1, -1):
+                        for w in range(red_n - h, -1, -1):
+                            c = red_n - h - w
+                            t_h = f"{h}热" if h > 0 else ""
+                            t_w = f"{w}温" if w > 0 else ""
+                            t_c = f"{c}冷" if c > 0 else ""
+                            t_all = t_h + t_w + t_c
+                            combos.append(f"{idx}: {t_all} ({h}{w}{c})")
+                            idx += 1
+
+                    # 🎯 终极修复：文字太长溢出！将每行 4 个强制改为每行 3 个，并赋予 2.8 的超大列宽比例，完美包裹！
+                    render_inline_hwc_row("热温冷个数排列", combos, "hwc_combo", chunk_size=3, opt_ratio=2.8)
+
+                    # ================= 🎯 底部全局多选确认按钮 =================
+                    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    _, c_cancel, c_confirm = st.columns([7.5, 1.25, 1.25])
+                    with c_cancel:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+                        if st.button("取消", key="hwc_global_cancel", use_container_width=True):
+                            for k in list(st.session_state.temp_sets.keys()):
+                                if k.startswith("hwc_"): del st.session_state.temp_sets[k]
+                            st.rerun()
+                    with c_confirm:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                        if st.button("确认提交", key="hwc_global_confirm", use_container_width=True):
+                            has_added = False
+                            base_prefix = f"基准{st.session_state.hwc_period}"
+
+                            for p in range(1, red_n + 1):
+                                arr = st.session_state.temp_sets.get(f"hwc_pos_{p}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "冷热温号",
+                                                                                   "rule": f"{base_prefix}_第{p}位热温冷 保留: [{','.join(arr)}]"}); has_added = True
+
+                            for c_type, label in [("hot", "热码"), ("warm", "温码"), ("cold", "冷码")]:
+                                arr = st.session_state.temp_sets.get(f"hwc_c_{c_type}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "冷热温号",
+                                                                                   "rule": f"{base_prefix}_{label}个数 保留: [{','.join(arr)}]"}); has_added = True
+
+                            combo_arr = st.session_state.temp_sets.get("hwc_combo", [])
+                            if combo_arr: st.session_state.filter_conditions.append({"module": "冷热温号",
+                                                                                     "rule": f"{base_prefix}_热温冷个数排列 保留: [{','.join(combo_arr)}]"}); has_added = True
+
+                            if has_added:
+                                for k in list(st.session_state.temp_sets.keys()):
+                                    if k.startswith("hwc_"): del st.session_state.temp_sets[k]
+                                st.rerun()
+                # ==============================================================
+                # 🌟 全新打通：顺连号与奇偶连号 独立综合操控台
+                # ==============================================================
+                elif st.session_state.sub_nav == "顺连号":
+                    red_n = 6 if is_ssq else 5
+                    max_r = 33 if is_ssq else 35
+
+                    # 💡 详细的新手使用说明卡片 (可折叠)
+                    with st.expander("💡 必看：【连号及奇偶连】核心含义及实战过滤法则", expanded=False):
+                        st.markdown(f"""
+                                        <div style="font-size:13px; color:#ddd; line-height:1.6;">
+                                            <b>1. 基础连号定义：</b><br>
+                                            &nbsp;&nbsp;• <b style='color:#00bcd4;'>常规连号</b>：相差为 1 的连续号码（如 01-02 或 12-13-14）。<br>
+                                            &nbsp;&nbsp;• <b style='color:#f9d71c;'>奇连号</b>：相差为 2 的纯奇数连续号码（如 01-03 或 07-09-11）。<br>
+                                            &nbsp;&nbsp;• <b style='color:#ff4b4b;'>偶连号</b>：相差为 2 的纯偶数连续号码（如 02-04 或 18-20-22）。<br>
+                                            <b>2. 宏观水位控制 (个数与组数)：</b><br>
+                                            &nbsp;&nbsp;• <b>连号个数</b>：一注号码中参与连号的所有红球总数。（例如开出 01-02 和 15-16，参与连号的个数为 4）。<br>
+                                            &nbsp;&nbsp;• <b>连号组数</b>：一注号码中包含了几组独立的连号。（例如开出 01-02 和 15-16，为 2 组连号）。<br>
+                                            &nbsp;&nbsp;• <b>实战建议</b>：大盘绝大多数期数集中在【无连号】或【1组2连号】中，您可以利用此项果断排除含有 4连、5连 及 3组连号的极端废底！<br>
+                                            <b>3. 微观指纹级排雷 (特定组合排除)：</b><br>
+                                            &nbsp;&nbsp;• 在下方的【二连号】【三连号】等标签页中，系统穷举了所有的特定连号形态。如果您断定某两个号码（如 34-35）近期绝不可能同出，直接点选并点击【排除】，一刀切碎所有包含该组合的垃圾大底！
+                                        </div>
+                                        """, unsafe_allow_html=True)
+
+                    def render_inline_seq_row(label, opts, category, chunk_size, opt_ratio):
+                        chunks = [opts[i:i + chunk_size] for i in range(0, len(opts), chunk_size)]
+                        for row_idx, chunk in enumerate(chunks):
+                            actual_len = len(chunk)
+                            pad_len = chunk_size - actual_len
+                            # 预留左侧2.4的宽度给标题，保证对齐
+                            ratio = [2.4] + [opt_ratio] * actual_len + [opt_ratio] * pad_len + [1.2, 1.2]
+                            cols = st.columns(ratio)
+
+                            with cols[0]:
+                                if row_idx == 0:
+                                    st.markdown('<div class="is-rect-btn"></div>', unsafe_allow_html=True)
+                                    st.markdown(
+                                        f"<div style='font-weight:bold; font-size:14px; white-space:nowrap; line-height:30px;'>{label}</div>",
+                                        unsafe_allow_html=True)
+
+                            for j, opt in enumerate(chunk):
+                                is_sel = str(opt) in st.session_state.temp_sets.get(category, [])
+                                marker = "is-rect-btn-active" if is_sel else "is-rect-btn-inactive"
+                                with cols[j + 1]:
+                                    st.markdown(f'<div class="is-rect-btn {marker}"></div>', unsafe_allow_html=True)
+                                    st.button(str(opt), key=f"inl_{category}_{opt}", on_click=toggle_temp_set,
+                                              args=(category, str(opt)))
+
+                            if row_idx == len(chunks) - 1:
+                                with cols[-2]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("保留", key=f"ink_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("顺连号",
+                                                              f"{label} 保留: [{','.join(map(str, arr))}]"); st.rerun()
+                                with cols[-1]:
+                                    st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>',
+                                                unsafe_allow_html=True)
+                                    if st.button("排除", key=f"ine_{category}"):
+                                        arr = st.session_state.temp_sets.get(category, [])
+                                        if arr: add_condition("顺连号",
+                                                              f"{label} 排除: [{','.join(map(str, arr))}]"); st.rerun()
+
+                    # 1. 宏观控制指标
+                    seq_counts = [0] + list(range(2, red_n + 1))
+                    render_inline_seq_row("连号个数", seq_counts, "seq_c_all", chunk_size=8, opt_ratio=0.8)
+                    render_inline_seq_row("连号组数", list(range(0, 4)), "seq_g_all", chunk_size=8, opt_ratio=0.8)
+                    render_inline_seq_row("奇连个数", seq_counts, "seq_c_odd", chunk_size=8, opt_ratio=0.8)
+                    render_inline_seq_row("偶连个数", seq_counts, "seq_c_even", chunk_size=8, opt_ratio=0.8)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+
+                    # 2. 标签页微观排雷区
+                    tab_names = ["二连号", "三连号", "四连号", "五连号"]
+                    if is_ssq: tab_names.append("六连号")
+                    tabs = st.tabs(tab_names)
+
+                    for i, t_name in enumerate(tab_names):
+                        with tabs[i]:
+                            l_size = i + 2  # 二连号 size=2
+                            combos = []
+                            for start_num in range(1, max_r - l_size + 2):
+                                c_str = "".join([f"{start_num + step:02d}" for step in range(l_size)])
+                                combos.append(c_str)
+
+                            cat_key = f"seq_combo_{l_size}"
+                            # 智能分配列宽：二连号较短，一行放 7 个；三连号以上较长，一行放 5 个
+                            c_size = 7 if l_size == 2 else (5 if l_size == 3 else 4)
+                            o_ratio = 1.2 if l_size == 2 else (1.8 if l_size == 3 else 2.5)
+                            render_inline_seq_row(t_name, combos, cat_key, chunk_size=c_size, opt_ratio=o_ratio)
+
+                    # ================= 🎯 底部全局多选确认按钮 =================
+                    st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.15);'>",
+                                unsafe_allow_html=True)
+                    _, c_cancel, c_confirm = st.columns([7.5, 1.25, 1.25])
+                    with c_cancel:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+                        if st.button("取消", key="seq_global_cancel", use_container_width=True):
+                            for k in list(st.session_state.temp_sets.keys()):
+                                if k.startswith("seq_"): del st.session_state.temp_sets[k]
+                            st.rerun()
+                    with c_confirm:
+                        st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                        if st.button("确认提交", key="seq_global_confirm", use_container_width=True):
+                            has_added = False
+
+                            for c_type, label in [("c_all", "连号个数"), ("g_all", "连号组数"), ("c_odd", "奇连个数"),
+                                                  ("c_even", "偶连个数")]:
+                                arr = st.session_state.temp_sets.get(f"seq_{c_type}", [])
+                                if arr: st.session_state.filter_conditions.append({"module": "顺连号",
+                                                                                   "rule": f"{label} 保留: [{','.join(map(str, arr))}]"}); has_added = True
+
+                            for l_size in range(2, red_n + 1):
+                                arr = st.session_state.temp_sets.get(f"seq_combo_{l_size}", [])
+                                name = ["二", "三", "四", "五", "六"][l_size - 2] + "连号"
+                                if arr: st.session_state.filter_conditions.append({"module": "顺连号",
+                                                                                   "rule": f"{name} 保留: [{','.join(map(str, arr))}]"}); has_added = True
+
+                            if has_added:
+                                for k in list(st.session_state.temp_sets.keys()):
+                                    if k.startswith("seq_"): del st.session_state.temp_sets[k]
+                                st.rerun()
+                else:
+                    st.info(f"这里将是【{st.session_state.sub_nav}】模块的专属工作区...")
+
+        # -----------------------------------------------------------
+        # 🟢 右侧展现列 (Top: 340px, Bottom: 520px) 彻底平齐对接！
+        # -----------------------------------------------------------
+        with col_right:
+            # 【右上框：购物车条件池】高度死锁 340px
+            with st.container(height=340, border=True):
+                if not st.session_state.filter_conditions:
+                    st.markdown(
+                        "<p style='color:var(--text-color); opacity:0.8; font-size:13px; text-align:center; margin-top:120px;'>此处展示保留的过滤条件及清除操作</p>",
+                        unsafe_allow_html=True)
+                for i, cond in enumerate(st.session_state.filter_conditions):
+                    c_tag, c_btn = st.columns([10, 1])
+                    c_tag.markdown(f"<div class='cart-item'><b>[{cond['module']}]</b> &nbsp; {cond['rule']}</div>",
+                                   unsafe_allow_html=True)
+                    if c_btn.button("X", key=f"del_{i}"):
+                        st.session_state.filter_conditions.pop(i)
+                        st.session_state.current_page = 1
+                        st.rerun()
+
+            # 【右下框：结果大屏区】高度死锁 520px
+            with st.container(height=520, border=True):
+                if st.session_state.get('show_eval', False) and st.session_state.get('eval_report'):
+                    st.markdown(st.session_state.eval_report, unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("🔙 关闭测算报告，返回过滤主界面", use_container_width=True):
+                        st.session_state.show_eval = False
+                        st.rerun()
+
+                elif st.session_state.get('show_results', False):
+                    total_rows = len(st.session_state.filtered_df)
+                    per_page = 50000
+                    total_pages = max(1, (total_rows - 1) // per_page + 1)
+
+                    if st.session_state.current_page > total_pages: st.session_state.current_page = total_pages
+                    if st.session_state.current_page < 1: st.session_state.current_page = 1
+
+                    start_idx = (st.session_state.current_page - 1) * per_page
+                    end_idx = start_idx + per_page
+
+                    display_cols = ['序号', '号码', '和值', '极距', '三区比']
+                    if is_ssq:
+                        display_cols += [f'{i}等奖' for i in range(1, 7)] + ['福运奖', '操作']
+                    else:
+                        display_cols += [f'{i}等奖' for i in range(1, 8)] + ['操作']
+
+                    if not st.session_state.filtered_df.empty:
+                        page_df = st.session_state.filtered_df.iloc[start_idx:end_idx].copy()
+                        red_cols = [f'R{i + 1}' for i in range(6 if is_ssq else 5)]
+                        blue_cols = ['B1'] if is_ssq else ['B1', 'B2']
+
+                        red_mat = page_df[red_cols].values
+                        has_blues = not pd.isna(page_df['B1'].iloc[0]) if 'B1' in page_df.columns else False
+
+                        str_arr = []
+                        for i in range(len(page_df)):
+                            r_str = " ".join([f"{int(x):02d}" for x in red_mat[i]])
+                            if has_blues:
+                                b_mat = page_df[blue_cols].values
+                                b_str = " ".join([f"{int(x):02d}" for x in b_mat[i]])
+                                str_arr.append(f"{r_str} + {b_str}")
+                            else:
+                                str_arr.append(f"{r_str}")
+
+                        page_df['号码'] = str_arr
+                        page_df['和值'] = red_mat.sum(axis=1)
+                        page_df['极距'] = red_mat.max(axis=1) - red_mat.min(axis=1)
+
+                        if is_ssq:
+                            z1 = np.sum((red_mat >= 1) & (red_mat <= 11), axis=1)
+                            z2 = np.sum((red_mat >= 12) & (red_mat <= 22), axis=1)
+                            z3 = np.sum((red_mat >= 23) & (red_mat <= 33), axis=1)
+                        else:
+                            z1 = np.sum((red_mat >= 1) & (red_mat <= 12), axis=1)
+                            z2 = np.sum((red_mat >= 13) & (red_mat <= 24), axis=1)
+                            z3 = np.sum((red_mat >= 25) & (red_mat <= 35), axis=1)
+
+                        page_df['三区比'] = [f"{z1[i]}:{z2[i]}:{z3[i]}" for i in range(len(page_df))]
+                        page_df['操作'] = '删除'
+
+                        page_df = calc_prizes_fast(page_df, is_ssq)
+                        st.dataframe(page_df[display_cols], height=380, use_container_width=True, hide_index=True)
+
+                    st.markdown("<hr style='margin:10px 0; border-color: rgba(128,128,128,0.2);'>",
+                                unsafe_allow_html=True)
+                    pc_cols = st.columns([2, 1.2, 1.2, 1.2, 1.2, 2, 1.2])
+                    with pc_cols[0]:
+                        st.markdown(
+                            f"<div style='font-size:13px; margin-top:8px;'>共 <b>{total_rows}</b> 注 | <b>{st.session_state.current_page}</b>/{total_pages} 页</div>",
+                            unsafe_allow_html=True)
+                    with pc_cols[1]:
+                        if st.button("首页", use_container_width=True,
+                                     key="p_first"): st.session_state.current_page = 1; st.rerun()
+                    with pc_cols[2]:
+                        if st.button("上页", use_container_width=True,
+                                     key="p_prev") and st.session_state.current_page > 1: st.session_state.current_page -= 1; st.rerun()
+                    with pc_cols[3]:
+                        if st.button("下页", use_container_width=True,
+                                     key="p_next") and st.session_state.current_page < total_pages: st.session_state.current_page += 1; st.rerun()
+                    with pc_cols[4]:
+                        if st.button("尾页", use_container_width=True,
+                                     key="p_last"): st.session_state.current_page = total_pages; st.rerun()
+                    with pc_cols[5]:
+                        st.session_state.page_input = st.number_input("跳转", min_value=1, max_value=total_pages,
+                                                                      value=st.session_state.current_page,
+                                                                      label_visibility="collapsed")
+                    with pc_cols[6]:
+                        if st.button("跳转", use_container_width=True,
+                                     key="p_go"): st.session_state.current_page = st.session_state.page_input; st.rerun()
+
+                else:
+                    st.markdown(
+                        "<p style='color:var(--text-color); opacity:0.8; text-align:center; margin-top:180px;'>过滤缩水结果展示 / 自选测算报告区</p>",
+                        unsafe_allow_html=True)
+
+            # -----------------------------------------------------------
+            # 🟢 7 大功能按钮：悬浮在右侧框外底部，不挤压大盘空间！
+            # -----------------------------------------------------------
+            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+            bc1, bc2, bc3, bc4, bc5, bc6, bc7 = st.columns(7)
+            with bc1:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("后区处理", use_container_width=True): blue_zone_modal()
+            with bc2:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("中奖查询", use_container_width=True): prize_check_modal(is_ssq)
+            with bc3:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("导出", use_container_width=True): export_modal(is_ssq)
+            with bc4:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("复制", use_container_width=True): copy_page_modal(is_ssq)
+            with bc5:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("清除", use_container_width=True):
+                    st.session_state.show_results = False
+                    st.session_state.filtered_df = pd.DataFrame()
+                    st.rerun()
+            with bc6:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("重置条件", use_container_width=True):
+                    st.session_state.filter_conditions = []
+                    st.session_state.show_results = False
+                    st.session_state.show_eval = False
+                    st.session_state.filtered_df = pd.DataFrame()
+                    st.rerun()
+            with bc7:
+                st.markdown('<div class="is-tool-btn"></div>', unsafe_allow_html=True)
+                if st.button("执行过滤", type="primary", use_container_width=True):
+                    red_df = generate_real_combinations(is_ssq)
+                    if red_df.empty:
+                        st.warning("⚠️ 请在左侧挑选红球！（大乐透至少5个，双色球至少6个）")
+                    else:
+                        red_df = execute_red_filters(red_df, st.session_state.filter_conditions, is_ssq)
+                        blue_df = generate_blue_combinations(is_ssq)
+
+                        if not blue_df.empty:
+                            curr_method = st.session_state.get('b_method', '循环使用')
+                            if curr_method == "逐一使用":
+                                red_df['key'] = 1
+                                blue_df['key'] = 1
+                                final_df = pd.merge(red_df, blue_df, on='key').drop('key', axis=1)
+                            else:
+                                num_repeats = (len(red_df) // len(blue_df)) + 1
+                                repeated_blue = pd.concat([blue_df] * num_repeats, ignore_index=True).iloc[
+                                    :len(red_df)].reset_index(drop=True)
+                                final_df = pd.concat([red_df.reset_index(drop=True), repeated_blue], axis=1)
+                        else:
+                            final_df = red_df.copy()
+                            if is_ssq:
+                                final_df['B1'] = np.nan
+                            else:
+                                final_df['B1'], final_df['B2'] = np.nan, np.nan
+
+                        if any(c['module'] == "奖项区间波动" for c in st.session_state.filter_conditions):
+                            with st.spinner("🚀 正在启动分块矩阵引擎，进行历史奖项全维排雷，请稍候..."):
+                                final_df = execute_prize_filters(final_df, st.session_state.filter_conditions, is_ssq)
+
+                        final_df.insert(0, '序号', range(1, len(final_df) + 1))
+                        st.session_state.filtered_df = final_df
+                        st.session_state.current_page = 1
+                        st.session_state.show_results = True
+                        st.session_state.show_eval = False
+                    st.rerun()
+
+# ----------------- 🚀 新增：全开放群聊大厅大窗口 -----------------
+    elif st.session_state.main_nav == '沟通大厅':
+        if st.session_state.current_user is None:
+            st.warning("⚠️ 沟通大厅为高级注册特权区，请点击右上角完成快速登录账户！")
+        else:
+            with st.container(border=True):
+                render_wechat_lobby()
+
+    # ----------------- 🚀 新增：用户信息档案修改大区 -----------------
+    elif st.session_state.main_nav == "用户信息中心":
+        if st.session_state.current_user is None:
+            st.session_state.main_nav = "首页"
+            st.rerun()
+        else:
+            c_prof, c_back = st.columns([8, 2])
+            with c_prof:
+                render_user_profile()
+            with c_back:
+                st.markdown('<div class="is-rect-btn is-rect-btn-inactive" style="margin-top:30px;"></div>', unsafe_allow_html=True)
+                if st.button("🔙 返回量化主视窗", use_container_width=True):
+                    st.session_state.main_nav = "过滤缩水工具"
+                    st.rerun()
+            st.markdown("<br/>", unsafe_allow_html=True)
+            # 给个退出登录的清爽功能按钮
+            st.markdown("<hr style='border-color:rgba(128,128,128,0.1);'>", unsafe_allow_html=True)
+            if st.button("🚨 销毁本次会话并安全退出当前账户", use_container_width=True):
+                st.session_state.current_user = None
+                st.session_state.main_nav = "首页"
+                st.rerun()
 
 
 if __name__ == "__main__":
