@@ -3350,7 +3350,7 @@ def execute_blue_filters(f_df, conditions, is_ssq):
             prev_b = int(hist_df.iloc[-1]['b1']) if len(hist_df) >= 1 else 8
             amp = np.abs(b1 - prev_b)
 
-            if attr == "蓝球定胆杀号":
+            if attr == "蓝球定位":
                 mask = np.isin(b1, [int(v) for v in vals if v.isdigit()])
             elif attr == "蓝球大小":
                 mask = np.isin(np.where(b1 >= 9, "大数", "小数"), vals)
@@ -3393,9 +3393,9 @@ def execute_blue_filters(f_df, conditions, is_ssq):
             sums = b1 + b2
             spans = b2 - b1
 
-            if attr == "第一位定胆杀号":
+            if attr == "第一位号码":
                 mask = np.isin(b1, [int(v) for v in vals if v.isdigit()])
-            elif attr == "第二位定胆杀号":
+            elif attr == "第二位号码":
                 mask = np.isin(b2, [int(v) for v in vals if v.isdigit()])
             elif attr == "后区奇偶组合":
                 mask = np.isin(np.where((b1 % 2 != 0) & (b2 % 2 != 0), "双奇",
@@ -6617,7 +6617,7 @@ def main():
                         else:
                             st.markdown("""<div style='font-size:13px; color:#ddd; line-height:1.6;'>
                                                 <b>大乐透后区(1-12)战术指南：</b><br>
-                                                &nbsp;&nbsp;• <b>双星独立定位</b>：第一位(落点偏小)和第二位(落点偏大)单独配置定胆与杀号。<br>
+                                                &nbsp;&nbsp;• <b>双星独立定位</b>：第一位(落点偏小)和第二位(落点偏大)单独配置定胆。<br>
                                                 &nbsp;&nbsp;• <b>联动形态比</b>：提供双奇偶、双大小、双质合、012路特征组合一键交叉硬核过滤。<br>
                                                 &nbsp;&nbsp;• <b>和跨控制网</b>：后区两球自备微型和值(3-23)与跨度(1-11)，构建外层防御链。
                                             </div>""", unsafe_allow_html=True)
@@ -6682,7 +6682,7 @@ def main():
                             "<div style='font-size:14px; font-weight:bold; margin-bottom:8px; color:#00bcd4;'>独立位次定位与冷热轨迹</div>",
                             unsafe_allow_html=True)
                         # 🎯 修复：16个球劈成两行，每行8个 (chunk_size=8)
-                        render_inline_blue_row("蓝球定胆杀号", [f"{i:02d}" for i in range(1, 17)], "b_ssq_num",
+                        render_inline_blue_row("蓝球定位", [f"{i:02d}" for i in range(1, 17)], "b_ssq_num",
                                                chunk_size=8, is_ball=True)
                         render_inline_blue_row("历史特征拦截", ["上期重号", "冰封极冷号"], "b_ssq_hist", chunk_size=4)
 
@@ -6717,9 +6717,9 @@ def main():
                             "<div style='font-size:14px; font-weight:bold; margin-bottom:8px; color:#00bcd4;'>双星独立落点精确定位</div>",
                             unsafe_allow_html=True)
                         # 🎯 修复：11个球劈成两行，每行6个 (chunk_size=6)
-                        render_inline_blue_row("第一位定胆杀号", [f"{i:02d}" for i in range(1, 12)], "b_dlt_p1",
+                        render_inline_blue_row("第一位号码", [f"{i:02d}" for i in range(1, 12)], "b_dlt_p1",
                                                chunk_size=6, is_ball=True)
-                        render_inline_blue_row("第二位定胆杀号", [f"{i:02d}" for i in range(2, 13)], "b_dlt_p2",
+                        render_inline_blue_row("第二位号码", [f"{i:02d}" for i in range(2, 13)], "b_dlt_p2",
                                                chunk_size=6, is_ball=True)
                         render_inline_blue_row("历史轨迹追踪", ["含上期重号", "含冰封极冷号"], "b_dlt_hist",
                                                chunk_size=4)
@@ -6770,17 +6770,16 @@ def main():
                                     "b_dlt_p1", "b_dlt_p2", "b_dlt_hist", "b_dlt_oe", "b_dlt_bs", "b_dlt_pc",
                                     "b_dlt_012", "b_dlt_sumv", "b_dlt_sumoe", "b_dlt_spanv", "b_dlt_spanoe"]
 
-                            lbl_map = {"b_ssq_num": "蓝球定胆杀号", "b_ssq_hist": "历史特征拦截",
-                                       "b_ssq_bs": "蓝球大小", "b_ssq_oe": "蓝球奇偶", "b_ssq_pc": "蓝球质合",
-                                       "b_ssq_zone": "蓝球四区", "b_ssq_tbs": "蓝球尾数大小",
-                                       "b_ssq_toe": "蓝球尾数奇偶", "b_ssq_ampv": "蓝球振幅数值",
-                                       "b_ssq_ampbs": "蓝球振幅大小", "b_ssq_ampoe": "蓝球振幅奇偶",
-                                       "b_dlt_p1": "第一位定胆杀号", "b_dlt_p2": "第二位定胆杀号",
-                                       "b_dlt_hist": "历史轨迹追踪", "b_dlt_oe": "后区奇偶组合",
-                                       "b_dlt_bs": "后区大小组合", "b_dlt_pc": "后区质合组合",
-                                       "b_dlt_012": "后区012路组合", "b_dlt_sumv": "后区和值数值",
-                                       "b_dlt_sumoe": "后区和值奇偶", "b_dlt_spanv": "后区跨度数值",
-                                       "b_dlt_spanoe": "后区跨度奇偶"}
+                            lbl_map = {"b_ssq_num": "蓝球定位", "b_ssq_hist": "历史特征拦截", "b_ssq_bs": "蓝球大小",
+                                       "b_ssq_oe": "蓝球奇偶", "b_ssq_pc": "蓝球质合", "b_ssq_zone": "蓝球四区",
+                                       "b_ssq_tbs": "蓝球尾数大小", "b_ssq_toe": "蓝球尾数奇偶",
+                                       "b_ssq_ampv": "蓝球振幅数值", "b_ssq_ampbs": "蓝球振幅大小",
+                                       "b_ssq_ampoe": "蓝球振幅奇偶",
+                                       "b_dlt_p1": "第一位号码", "b_dlt_p2": "第二位号码", "b_dlt_hist": "历史轨迹追踪",
+                                       "b_dlt_oe": "后区奇偶组合", "b_dlt_bs": "后区大小组合",
+                                       "b_dlt_pc": "后区质合组合", "b_dlt_012": "后区012路组合",
+                                       "b_dlt_sumv": "后区和值数值", "b_dlt_sumoe": "后区和值奇偶",
+                                       "b_dlt_spanv": "后区跨度数值", "b_dlt_spanoe": "后区跨度奇偶"}
 
                             for k_cat in cats:
                                 arr = st.session_state.temp_sets.get(k_cat, [])
