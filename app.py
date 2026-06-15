@@ -54,6 +54,19 @@ if 'current_page' not in st.session_state: st.session_state.current_page = 1
 if 'page_input' not in st.session_state: st.session_state.page_input = 1
 if 'active_stats_pos' not in st.session_state: st.session_state.active_stats_pos = 1
 if 'temp_sets' not in st.session_state: st.session_state.temp_sets = {}
+# --- 🌟 新增：智能选号专属状态机 ---
+import math
+def nCr(n, r):
+    if r < 0 or r > n: return 0
+    return math.comb(n, r)
+
+if 'sp_lottery' not in st.session_state: st.session_state.sp_lottery = '大乐透'
+if 'sp_mode' not in st.session_state: st.session_state.sp_mode = '标准选号'
+if 'sp_dlt_r' not in st.session_state: st.session_state.sp_dlt_r = {} # 存储 01-35 的状态: 0无, 1胆, 2拖
+if 'sp_dlt_b' not in st.session_state: st.session_state.sp_dlt_b = {} # 存储 01-12 的状态
+if 'sp_ssq_r' not in st.session_state: st.session_state.sp_ssq_r = {}
+if 'sp_ssq_b' not in st.session_state: st.session_state.sp_ssq_b = {}
+if 'sp_combos' not in st.session_state: st.session_state.sp_combos = [] # 购物车
 
 for i in range(1, 7):
     if f'tail_{i}' not in st.session_state: st.session_state[f'tail_{i}'] = []
@@ -130,7 +143,13 @@ st.markdown("""
     div.element-container:has(.is-mini-btn) + div.element-container div[data-testid="stButton"] button { width: 100% !important; height: 30px !important; min-height: 30px !important; border-radius: 4px !important; padding: 0 !important; font-size: 13px !important; background: var(--background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128,128,128,0.3) !important; }
     div.element-container:has(.is-tool-btn) + div.element-container div[data-testid="stButton"] button { padding: 0 !important; height: 34px !important; min-height: 34px !important; }
     div.element-container:has(.is-tool-btn) + div.element-container div[data-testid="stButton"] button p { font-size: 13px !important; white-space: nowrap !important; margin: 0 !important; }
-
+    
+    /* 🚀 智能选号专属三态球体皮肤 */
+    div.element-container:has(.sp-red-gall) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, #ff5b5b 0%, #d32f2f 50%, #9a0000 100%) !important; color: white !important; border: none !important; border-radius: 50% !important; width: 34px !important; height: 34px !important; min-height: 34px !important; padding:0 !important; display: flex !important; justify-content: center !important;}
+    div.element-container:has(.sp-green-drag) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, #4caf50 0%, #2e7d32 50%, #1b5e20 100%) !important; color: white !important; border: none !important; border-radius: 50% !important; width: 34px !important; height: 34px !important; min-height: 34px !important; padding:0 !important; display: flex !important; justify-content: center !important;}
+    div.element-container:has(.sp-blue-gall) + div.element-container div[data-testid="stButton"] button { background: radial-gradient(circle at 30% 30%, #5bb2ff 0%, #0073e6 50%, #003b80 100%) !important; color: white !important; border: none !important; border-radius: 50% !important; width: 34px !important; height: 34px !important; min-height: 34px !important; padding:0 !important; display: flex !important; justify-content: center !important;}
+    div.element-container:has(.sp-unsel) + div.element-container div[data-testid="stButton"] button { background: #f0f2f6 !important; color: #888 !important; border: 1px solid #ddd !important; border-radius: 50% !important; width: 34px !important; height: 34px !important; min-height: 34px !important; padding:0 !important; display: flex !important; justify-content: center !important;}
+    div.element-container:has(.sp-unsel):hover + div.element-container div[data-testid="stButton"] button { border-color: #ff4b4b !important; color: #ff4b4b !important; }
 
     /* ========================================================== */
     /* 🚀 档位一：大屏模式 (> 1600px，如 27寸 / 32寸显示器) */
@@ -3536,8 +3555,10 @@ def execute_prize_filters(df, conditions, is_ssq):
     return df.loc[valid_indices].reset_index(drop=True)
 
 def calc_prizes_fast(page_df, is_ssq):
-    # 注意这里调用的是 app.py 中读取真实 Excel 的函数！
-    hist_df = get_full_detailed_data(st.session_state.lottery_type)
+    # 🎯 核心修复1：强制切断状态机耦合，根据传入参数独立读取历史文件
+    target_lottery = "双色球" if is_ssq else "大乐透"
+    hist_df = get_full_detailed_data(target_lottery)
+
     if hist_df.empty:
         prize_cols = [f'{i}等奖' for i in range(1, 7)] + ['福运奖'] if is_ssq else [f'{i}等奖' for i in range(1, 8)]
         for c in prize_cols: page_df[c] = 0
@@ -3558,12 +3579,13 @@ def calc_prizes_fast(page_df, is_ssq):
 
     has_blues = not pd.isna(page_df['B1'].iloc[0]) if not page_df.empty and 'B1' in page_df.columns else False
 
-    for c in red_cols: page_R[np.arange(N), page_df[c].values] = 1
+    # 🎯 核心修复2：利用 np.array 强制转换为纯净的整型，彻底杜绝 IndexError 矩阵爆炸报错！
+    for c in red_cols: page_R[np.arange(N), np.array(page_df[c], dtype=int)] = 1
     if has_blues:
-        for c in blue_cols: page_B[np.arange(N), page_df[c].values.astype(int)] = 1
+        for c in blue_cols: page_B[np.arange(N), np.array(page_df[c], dtype=int)] = 1
 
-    for c in h_red_cols: hist_R[np.arange(H), hist_df[c].values.astype(int)] = 1
-    for c in h_blue_cols: hist_B[np.arange(H), hist_df[c].values.astype(int)] = 1
+    for c in h_red_cols: hist_R[np.arange(H), np.array(hist_df[c], dtype=int)] = 1
+    for c in h_blue_cols: hist_B[np.arange(H), np.array(hist_df[c], dtype=int)] = 1
 
     r_hits = np.dot(page_R, hist_R.T)
     b_hits = np.dot(page_B, hist_B.T)
@@ -3575,7 +3597,8 @@ def calc_prizes_fast(page_df, is_ssq):
         page_df['4等奖'] = np.sum(((r_hits == 5) & (b_hits == 0)) | ((r_hits == 4) & (b_hits == 1)), axis=1)
         page_df['5等奖'] = np.sum(((r_hits == 4) & (b_hits == 0)) | ((r_hits == 3) & (b_hits == 1)), axis=1)
         page_df['6等奖'] = np.sum((r_hits <= 2) & (b_hits == 1), axis=1)
-        page_df['福运奖'] = 0
+        # 🎯 核心修复3：激活双色球专属的福运奖 (3红0蓝)
+        page_df['福运奖'] = np.sum((r_hits == 3) & (b_hits == 0), axis=1)
     else:
         page_df['1等奖'] = np.sum((r_hits == 5) & (b_hits == 2), axis=1)
         page_df['2等奖'] = np.sum((r_hits == 5) & (b_hits == 1), axis=1)
@@ -4994,7 +5017,7 @@ def user_auth_dialog():
                     st.rerun()
 def main():
     # ----------------- 1. 动态构筑主导航菜单项 -----------------
-    main_options = ['首页', '大乐透', '双色球', '过滤缩水工具']
+    main_options = ['首页', '大乐透', '双色球', '过滤缩水工具', '智能选号']
     if st.session_state.current_user is not None:
         main_options.append('沟通大厅')
 
@@ -7023,7 +7046,541 @@ def main():
                         st.session_state.show_results = True
                         st.session_state.show_eval = False
                     st.rerun()
+# ----------------- 🚀 新增：智能选号终端 (三大玩法 + AI评估闭环) -----------------
+    elif st.session_state.main_nav == '智能选号':
 
+        # 1. 顶部彩种切换
+        c_top1, _, c_top2 = st.columns([3, 5, 2])
+        with c_top1:
+            st.markdown(
+                f"<div style='font-size: 16px; color: #888; margin: 10px 0;'>你当前所在位置：{st.session_state.sp_lottery}智能选号</div>",
+                unsafe_allow_html=True)
+        with c_top2:
+            new_lot = st.selectbox("切换彩种", ["大乐透", "双色球"],
+                                   index=["大乐透", "双色球"].index(st.session_state.sp_lottery),
+                                   label_visibility="collapsed")
+            if new_lot != st.session_state.sp_lottery:
+                st.session_state.sp_lottery = new_lot
+                st.session_state.sp_combos = []
+                st.session_state.sp_dlt_r, st.session_state.sp_dlt_b = {}, {}
+                st.session_state.sp_ssq_r, st.session_state.sp_ssq_b = {}, {}
+                st.rerun()
+
+        is_ssq = (st.session_state.sp_lottery == "双色球")
+        r_max = 33 if is_ssq else 35
+        b_max = 16 if is_ssq else 12
+        r_req = 6 if is_ssq else 5
+        b_req = 1 if is_ssq else 2
+
+        # 2. 三大模式导航
+        st.markdown("<br>", unsafe_allow_html=True)
+        modes = ["标准选号", "复式选号", "拖胆选号"]
+        sel_mode = st.radio("选号模式", modes, index=modes.index(st.session_state.sp_mode), horizontal=True,
+                            label_visibility="collapsed")
+        if sel_mode != st.session_state.sp_mode:
+            st.session_state.sp_mode = sel_mode
+            st.rerun()
+
+        def sp_toggle(zone, num, max_gall, is_blue=False, force_standard=False):
+            state_dict = st.session_state[zone]
+            curr = state_dict.get(num, 0)
+            if force_standard:
+                state_dict[num] = 0 if curr != 0 else 1
+            else:
+                if curr == 0:
+                    current_galls = sum(1 for v in state_dict.values() if v == 1)
+                    if current_galls < max_gall:
+                        state_dict[num] = 1
+                    else:
+                        state_dict[num] = 2
+                elif curr == 1:
+                    state_dict[num] = 2
+                elif curr == 2:
+                    state_dict[num] = 0
+
+        def render_sp_balls(title, max_num, zone_key, max_gall, is_blue=False, tip=""):
+            st.markdown(
+                f"<div style='text-align:center; font-size:12px; color:#bbb; border-bottom:1px solid rgba(128,128,128,0.2); margin: 15px 0 10px 0;'><span style='background:var(--secondary-background-color); padding:0 10px;'>请选择 <b style='color:{'#00bcd4' if is_blue else '#ff4b4b'};'>{title}</b></span></div>",
+                unsafe_allow_html=True)
+            force_std = (st.session_state.sp_mode in ["标准选号", "复式选号"]) or (is_ssq and is_blue)
+
+            chunks = [list(range(1, max_num + 1))[i:i + 17] for i in range(0, max_num, 17)]
+            for chunk in chunks:
+                cols = st.columns(17)
+                for j, num in enumerate(chunk):
+                    num_str = f"{num:02d}"
+                    state = st.session_state[zone_key].get(num_str, 0)
+
+                    if state == 1:
+                        marker = "sp-blue-gall" if is_blue else "sp-red-gall"
+                    elif state == 2:
+                        marker = "sp-blue-drag" if is_blue else "sp-green-drag"
+                    else:
+                        marker = "sp-unsel"
+
+                    with cols[j]:
+                        st.markdown(f'<div class="{marker}"></div>', unsafe_allow_html=True)
+                        st.button(num_str, key=f"sp_{zone_key}_{num_str}", on_click=sp_toggle,
+                                  args=(zone_key, num_str, max_gall, is_blue, force_std))
+            if tip: st.markdown(f"<div style='font-size:12px; color:#888; margin-top:8px;'>ⓘ {tip}</div>",
+                                unsafe_allow_html=True)
+
+        with st.container(border=True):
+            r_key = 'sp_ssq_r' if is_ssq else 'sp_dlt_r'
+            b_key = 'sp_ssq_b' if is_ssq else 'sp_dlt_b'
+
+            if st.session_state.sp_mode == "拖胆选号":
+                r_tip = "最多5个胆码，最少1个拖码，胆+拖不少于6个。" if is_ssq else "最多4个胆码，最少1个拖码，胆+拖不少于5个。同号点击一次为红球(胆)，再次点击为绿球(拖)。"
+                b_tip = "双色球后区无胆拖，请直接选择。" if is_ssq else "最多1个胆码，最少1个拖码，胆+拖不少于2个。"
+                render_sp_balls("前区", r_max, r_key, 5 if is_ssq else 4, is_blue=False, tip=r_tip)
+                render_sp_balls("后区", b_max, b_key, 0 if is_ssq else 1, is_blue=True, tip=b_tip)
+            else:
+                s_tip = "满足最低数量要求即可生成注数，多选将自动生成复式大底。"
+                render_sp_balls("前区", r_max, r_key, 99, is_blue=False, tip=s_tip)
+                render_sp_balls("后区", b_max, b_key, 99, is_blue=True)
+
+            # --- 注数与金额极速结算 ---
+            r_dict, b_dict = st.session_state[r_key], st.session_state[b_key]
+            r_gall = [k for k, v in r_dict.items() if v == 1]
+            r_drag = [k for k, v in r_dict.items() if v == 2] if st.session_state.sp_mode == "拖胆选号" else []
+            b_gall = [k for k, v in b_dict.items() if v == 1]
+            b_drag = [k for k, v in b_dict.items() if v == 2] if (
+                        st.session_state.sp_mode == "拖胆选号" and not is_ssq) else []
+
+            tickets = 0
+            if st.session_state.sp_mode == "拖胆选号":
+                if len(r_gall) > 0 and len(r_gall) < r_req and (len(r_gall) + len(r_drag)) >= r_req:
+                    if is_ssq:
+                        if len(b_gall) >= 1:
+                            tickets = nCr(len(r_drag), r_req - len(r_gall)) * nCr(len(b_gall), b_req)
+                    else:
+                        if len(b_gall) == 1 and len(b_drag) >= 1:
+                            tickets = nCr(len(r_drag), r_req - len(r_gall)) * nCr(len(b_drag), b_req - len(b_gall))
+                        elif len(b_gall) == 0 and len(b_drag) >= b_req:
+                            tickets = nCr(len(r_drag), r_req - len(r_gall)) * nCr(len(b_drag), b_req)
+            else:
+                if len(r_gall) >= r_req and len(b_gall) >= b_req:
+                    tickets = nCr(len(r_gall), r_req) * nCr(len(b_gall), b_req)
+
+            amount = tickets * 2
+
+            st.markdown("<hr style='margin:15px 0; border-color: rgba(128,128,128,0.15);'>", unsafe_allow_html=True)
+            if st.session_state.sp_mode == "拖胆选号":
+                st.markdown(
+                    f"<div style='font-size:14px; margin-bottom:15px;'>您当前选择了：前区 <b style='color:#ff4b4b;'>{len(r_gall) + len(r_drag)}</b> 个 ( <b style='color:#ff4b4b;'>{len(r_gall)}</b>个胆码，<b style='color:#ff4b4b;'>{len(r_drag)}</b>个拖码)，后区 <b style='color:#00bcd4;'>{len(b_gall) + len(b_drag)}</b> 个 ( <b style='color:#ff4b4b;'>{len(b_gall)}</b>个胆码，<b style='color:#ff4b4b;'>{len(b_drag)}</b>个拖码)，共 <b style='color:#ff4b4b;'>{tickets}</b> 注，共 <b style='color:#ff4b4b;'>{amount}</b> 元。</div>",
+                    unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"<div style='font-size:14px; margin-bottom:15px;'>您当前选择了：前区 <b style='color:#ff4b4b;'>{len(r_gall)}</b> 个，后区 <b style='color:#00bcd4;'>{len(b_gall)}</b> 个，共 <b style='color:#ff4b4b;'>{tickets}</b> 注，共 <b style='color:#ff4b4b;'>{amount}</b> 元。</div>",
+                    unsafe_allow_html=True)
+
+            _, c_conf, _ = st.columns([4.5, 1, 4.5])
+            with c_conf:
+                st.markdown('<div class="is-rect-btn is-rect-btn-active"></div>', unsafe_allow_html=True)
+                if st.button("确认选号", use_container_width=True):
+                    if tickets == 0:
+                        st.error(f"⚠️ 号码未达到最低起步要求！")
+                    else:
+                        r_gall.sort();
+                        r_drag.sort();
+                        b_gall.sort();
+                        b_drag.sort()
+                        if st.session_state.sp_mode == "拖胆选号":
+                            r_str = f"<span style='color:#ff4b4b;'>[胆]</span>{' '.join(r_gall)}<span style='color:#00bcd4;'>[拖]</span>{' '.join(r_drag)}"
+                            if is_ssq:
+                                b_str = f"{' '.join(b_gall)}"
+                            else:
+                                b_str = f"<span style='color:#ff4b4b;'>[胆]</span>{' '.join(b_gall)}<span style='color:#00bcd4;'>[拖]</span>{' '.join(b_drag)}" if len(
+                                    b_gall) > 0 else f"<span style='color:#00bcd4;'>[拖]</span>{' '.join(b_drag)}"
+                        else:
+                            r_str = " ".join(r_gall)
+                            b_str = " ".join(b_gall)
+
+                        show_type = "标准单式" if tickets == 1 else "复式大底"
+                        if st.session_state.sp_mode == "拖胆选号": show_type = "拖胆选号"
+
+                        combo_str = f"{show_type} {r_str} <span style='color:#00bcd4;'>+</span> <span style='color:#00bcd4;'>{b_str}</span> [{tickets}注,{amount}元]"
+
+                        st.session_state.sp_combos.append({
+                            "type": show_type,
+                            "desc": combo_str,
+                            "r_galls": r_gall, "r_drags": r_drag,
+                            "b_galls": b_gall, "b_drags": b_drag,
+                            "tickets": tickets
+                        })
+                        st.session_state[r_key] = {}
+                        st.session_state[b_key] = {}
+                        st.rerun()
+
+        # 3. 号码组合展现区域 & AI 智能生成
+        c_list, c_ops = st.columns([8.5, 1.5])
+        with c_list:
+            with st.container(height=300, border=True):
+                if not st.session_state.sp_combos:
+                    st.markdown(
+                        "<p style='text-align:center; color:#888; margin-top:120px;'>号码组合展现区域<br><span style='font-size:12px;'>手动添加或点击右侧AI机选</span></p>",
+                        unsafe_allow_html=True)
+                else:
+                    for i, combo in enumerate(st.session_state.sp_combos):
+                        cc1, cc2 = st.columns([9.5, 0.5])
+                        cc1.markdown(
+                            f"<div style='font-size:14px; font-weight:bold; padding:8px 0; border-bottom:1px solid rgba(128,128,128,0.1);'>{combo['desc']}</div>",
+                            unsafe_allow_html=True)
+                        if cc2.button("X", key=f"del_sp_{i}", help="删除该组"):
+                            st.session_state.sp_combos.pop(i)
+                            st.rerun()
+
+        with c_ops:
+            def ai_smart_pick(num_tickets):
+                import random
+                pool_r = list(range(1, r_max + 1))
+                pool_b = list(range(1, b_max + 1))
+                valid_picks = []
+                for _ in range(1000):
+                    r_pick = sorted(random.sample(pool_r, r_req))
+                    b_pick = sorted(random.sample(pool_b, b_req))
+                    s_val = sum(r_pick)
+                    ac = len(set(abs(x - y) for x, y in itertools.combinations(r_pick, 2))) - (r_req - 1)
+                    odd = sum(1 for x in r_pick if x % 2 != 0)
+
+                    if is_ssq and not (85 <= s_val <= 125): continue
+                    if not is_ssq and not (70 <= s_val <= 110): continue
+                    if odd == 0 or odd == r_req: continue
+                    if ac < (4 if is_ssq else 2) or ac > (8 if is_ssq else 5): continue
+
+                    valid_picks.append(([f"{x:02d}" for x in r_pick], [f"{x:02d}" for x in b_pick]))
+                    if len(valid_picks) >= num_tickets: break
+
+                while len(valid_picks) < num_tickets:
+                    valid_picks.append(([f"{x:02d}" for x in sorted(random.sample(pool_r, r_req))],
+                                        [f"{x:02d}" for x in sorted(random.sample(pool_b, b_req))]))
+
+                for r, b in valid_picks:
+                    r_str, b_str = " ".join(r), " ".join(b)
+                    st.session_state.sp_combos.append({
+                        "type": "AI单式",
+                        "desc": f"AI单式 {r_str} <span style='color:#00bcd4;'>+</span> <span style='color:#00bcd4;'>{b_str}</span> [1注,2元]",
+                        "r_galls": r, "r_drags": [], "b_galls": b, "b_drags": [], "tickets": 1
+                    })
+                st.rerun()
+
+            st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+            if st.button("AI智能1注", use_container_width=True): ai_smart_pick(1)
+            st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+            if st.button("AI智能5注", use_container_width=True): ai_smart_pick(5)
+            st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+            if st.button("AI智能10注", use_container_width=True): ai_smart_pick(10)
+            st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+            if st.button("复制号码", use_container_width=True):
+                st.toast("✅ 请直接选中文本框内号码进行复制")
+            st.markdown('<div class="is-rect-btn is-rect-btn-inactive"></div>', unsafe_allow_html=True)
+            if st.button("清空全部", use_container_width=True):
+                st.session_state.sp_combos = []
+                st.rerun()
+
+        # 4. 底部终极全息雷达分析区
+        st.markdown("<h4 style='text-align:center; color:#00bcd4; margin-top:20px;'>智能组合号码的分析结果展示区域</h4>", unsafe_allow_html=True)
+        if not st.session_state.sp_combos:
+            st.info("等待号码接入系统，将自动触发底层百万级矩阵深度评测扫描...")
+        else:
+            with st.spinner("🚀 AI 量化引擎正在解包阵列，进行全维度矩阵交叉降维打击与九大指标逐注评估..."):
+
+                # 🎯 彻底拆包引爆算力：将复式/拖胆强行解构成 N 个单注
+                def expand_to_single_bets(combo):
+                    rg = [int(x) for x in combo["r_galls"]]
+                    rd = [int(x) for x in combo["r_drags"]]
+                    bg = [int(x) for x in combo["b_galls"]]
+                    bd = [int(x) for x in combo["b_drags"]]
+
+                    if combo["type"] in ["标准单式", "AI单式", "复式大底", "复式选号", "标准选号"]:
+                        reds = list(itertools.combinations(rg, r_req))
+                        blues = list(itertools.combinations(bg, b_req))
+                        return list(itertools.product(reds, blues))
+                    elif combo["type"] == "拖胆选号":
+                        r_need = r_req - len(rg)
+                        r_combos = [sorted(rg + list(x)) for x in itertools.combinations(rd, r_need)]
+                        if is_ssq:
+                            b_combos = [[b] for b in bg]
+                        else:
+                            b_need = b_req - len(bg)
+                            b_combos = [sorted(bg + list(x)) for x in itertools.combinations(bd, b_need)]
+                        return list(itertools.product(r_combos, b_combos))
+                    return []
+
+                last_prize_name = "福运奖" if is_ssq else "7等奖"
+
+                # 🌟🌟🌟 核心修复：强制切断状态机耦合，动态加载对应彩种全量历史 🌟🌟🌟
+                target_lottery = "双色球" if is_ssq else "大乐透"
+                hist_df = get_full_detailed_data(target_lottery)
+                h_cols = [f'r{i+1}' for i in range(r_req)]
+
+                # 提取前一期与前两期数据用于 重、跳、新 判定
+                prev_1_reds = set(int(x) for x in hist_df.iloc[-1][h_cols]) if len(hist_df) >= 1 else set()
+                prev_2_reds = set(int(x) for x in hist_df.iloc[-2][h_cols]) if len(hist_df) >= 2 else set()
+
+                # 提取历史全量频率用于 热、温、冷 判定
+                freq = {i: 0 for i in range(1, r_max + 1)}
+                if not hist_df.empty:
+                    for c in h_cols:
+                        for n, cnt in hist_df[c].value_counts().items():
+                            freq[int(n)] += cnt
+                sorted_nums = sorted(freq.keys(), key=lambda x: freq[x], reverse=True)
+                hot_set = set(sorted_nums[:int(r_max * 0.3)])
+                cold_set = set(sorted_nums[-int(r_max * 0.3):])
+
+                for i, combo in enumerate(st.session_state.sp_combos):
+                    expanded_bets = expand_to_single_bets(combo)
+                    if not expanded_bets: continue
+
+                    rows_data = []
+                    for r, b in expanded_bets:
+                        padded_b = list(b) + [0] * (b_req - len(b))
+                        rows_data.append(list(r) + padded_b)
+
+                    col_names = [f'R{k+1}' for k in range(r_req)] + [f'B{k+1}' for k in range(b_req)]
+                    eval_df = pd.DataFrame(rows_data, columns=col_names)
+                    eval_df = eval_df.apply(pd.to_numeric, errors='coerce')
+
+                    # 🎯 全量对奖：计算历史累计命中数
+                    res_df = calc_prizes_fast(eval_df.copy(), is_ssq)
+
+                    c1_tot = int(res_df['1等奖'].sum())
+                    c2_tot = int(res_df['2等奖'].sum())
+                    c3_tot = int(res_df['3等奖'].sum())
+                    c4_tot = int(res_df['4等奖'].sum())
+                    c5_tot = int(res_df['5等奖'].sum())
+                    c6_tot = int(res_df['6等奖'].sum())
+                    c_last_tot = int(res_df['福运奖'].sum() if is_ssq else res_df['7等奖'].sum())
+
+                    # 🎯 UI 头部：组合原态展示
+                    if combo['type'] == "拖胆选号":
+                        r_show = f"<span style='color:#ff4b4b;'>[胆]</span> {' '.join([f'{int(x):02d}' for x in combo['r_galls']])} <span style='color:#00bcd4;'>[拖]</span> {' '.join([f'{int(x):02d}' for x in combo['r_drags']])}"
+                        if is_ssq:
+                            b_show = f"<span style='color:#00bcd4;'>{' '.join([f'{int(x):02d}' for x in combo['b_galls']])}</span>"
+                        else:
+                            if len(combo['b_galls']) > 0:
+                                b_show = f"<span style='color:#ff4b4b;'>[胆]</span> {' '.join([f'{int(x):02d}' for x in combo['b_galls']])} <span style='color:#00bcd4;'>[拖]</span> {' '.join([f'{int(x):02d}' for x in combo['b_drags']])}"
+                            else:
+                                b_show = f"<span style='color:#00bcd4;'>[拖] {' '.join([f'{int(x):02d}' for x in combo['b_drags']])}</span>"
+                    else:
+                        r_show = f"<span style='color:#ff4b4b;'>{' '.join([f'{int(x):02d}' for x in combo['r_galls']])}</span>"
+                        b_show = f"<span style='color:#00bcd4;'>{' '.join([f'{int(x):02d}' for x in combo['b_galls']])}</span>"
+
+                    # 🎯 累计命中总数面板
+                    prize_html = (
+                        f"<div style='margin:12px 0; padding:10px; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid rgba(128,128,128,0.15);'>"
+                        f"<div style='display:flex; justify-content:space-between; text-align:center;'>累计命中总计 (Aggregate Pins)"
+                        f"<div style='flex:1;'><div style='color:#888; font-size:11px;'>1等</div><div style='color:{'#ff4b4b' if c1_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c1_tot}</div></div>"
+                        f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>2等</div><div style='color:{'#ff4b4b' if c2_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c2_tot}</div></div>"
+                        f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>3等</div><div style='color:{'#f9d71c' if c3_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c3_tot}</div></div>"
+                        f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>4等</div><div style='color:{'#00FF7F' if c4_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c4_tot}</div></div>"
+                        f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>5等</div><div style='color:{'#4da6ff' if c5_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c5_tot}</div></div>"
+                        f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>6等</div><div style='color:{'#fff' if c6_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c6_tot}</div></div>"
+                        f"<div style='flex:1; border-left:1px solid rgba(128,128,128,0.15);'><div style='color:#888; font-size:11px;'>{last_prize_name[:2]}</div><div style='color:{'#fff' if c_last_tot>0 else '#555'}; font-weight:bold; font-size:16px;'>{c_last_tot}</div></div>"
+                        f"</div></div>"
+                    )
+
+                    # 🌟🌟🌟 单注与多注的区别展现 (九大满血指标) 🌟🌟🌟
+                    is_single_bet = (len(expanded_bets) == 1)
+                    diagnostics_html = ""
+
+                    if is_single_bet:
+                        # 【情况 A】如果是标准选号（只有1注）：直接展示子弹头文字评价
+                        r_base, b_base = expanded_bets[0]
+                        score = 100
+                        details = []
+
+                        sum_val = sum(r_base)
+                        span_val = max(r_base) - min(r_base)
+                        ac_val = len(set(abs(x - y) for x, y in itertools.combinations(r_base, 2))) - (r_req - 1)
+                        odd_cnt = sum(1 for x in r_base if x % 2 != 0)
+                        even_cnt = r_req - odd_cnt
+                        big_thresh = 17 if is_ssq else 18
+                        big_cnt = sum(1 for x in r_base if x >= big_thresh)
+                        small_cnt = r_req - big_cnt
+                        c0, c1, c2 = sum(1 for x in r_base if x%3==0), sum(1 for x in r_base if x%3==1), sum(1 for x in r_base if x%3==2)
+
+                        if is_ssq:
+                            z1 = sum(1 for x in r_base if 1 <= x <= 11)
+                            z2 = sum(1 for x in r_base if 12 <= x <= 22)
+                            z3 = sum(1 for x in r_base if 23 <= x <= 33)
+                        else:
+                            z1 = sum(1 for x in r_base if 1 <= x <= 12)
+                            z2 = sum(1 for x in r_base if 13 <= x <= 24)
+                            z3 = sum(1 for x in r_base if 25 <= x <= 35)
+                        ratio_t = f"{z1}:{z2}:{z3}"
+
+                        h_cnt = sum(1 for x in r_base if x in hot_set)
+                        c_cnt = sum(1 for x in r_base if x in cold_set)
+                        w_cnt = r_req - h_cnt - c_cnt
+
+                        rep_cnt = sum(1 for x in r_base if x in prev_1_reds)
+                        jmp_cnt = sum(1 for x in r_base if x in prev_2_reds and x not in prev_1_reds)
+                        new_cnt = r_req - rep_cnt - jmp_cnt
+
+                        if odd_cnt == 0 or odd_cnt == r_req:
+                            score -= 20; details.append(f"🔴 <b>奇偶比 [{odd_cnt}:{even_cnt}]</b>: 极端偏态区，扣 20 分。")
+                        elif odd_cnt in [r_req//2, (r_req+1)//2]:
+                            details.append(f"🟢 <b>奇偶比 [{odd_cnt}:{even_cnt}]</b>: 契合大盘黄金常态均值。")
+                        else:
+                            score -= 5; details.append(f"🟡 <b>奇偶比 [{odd_cnt}:{even_cnt}]</b>: 轻微偏离中心轴，扣 5 分。")
+
+                        if big_cnt == 0 or big_cnt == r_req:
+                            score -= 20; details.append(f"🔴 <b>大小比 [{big_cnt}:{small_cnt}]</b>: 极端偏态区，扣 20 分。")
+                        elif big_cnt in [r_req//2, (r_req+1)//2]:
+                            details.append(f"🟢 <b>大小比 [{big_cnt}:{small_cnt}]</b>: 契合大盘中心潮汐。")
+                        else:
+                            score -= 5; details.append(f"🟡 <b>大小比 [{big_cnt}:{small_cnt}]</b>: 轻微偏移，扣 5 分。")
+
+                        if z1 == 0 or z2 == 0 or z3 == 0:
+                            details.append(f"🟡 <b>三区比 [{ratio_t}]</b>: 存在断区，分布失衡。")
+                        else:
+                            details.append(f"🟢 <b>三区比 [{ratio_t}]</b>: 三区均衡，形态健康。")
+
+                        sum_ideal = (90, 110) if is_ssq else (75, 105)
+                        if sum_ideal[0] <= sum_val <= sum_ideal[1]:
+                            details.append(f"🟢 <b>和值 [{sum_val}]</b>: 落在核心爆发密集区。")
+                        else:
+                            score -= 10; details.append(f"🟡 <b>和值 [{sum_val}]</b>: 偏离大盘主轴，扣 10 分。")
+
+                        ac_ideal = [4, 5, 6, 7, 8] if is_ssq else [2, 3, 4, 5]
+                        if ac_val in ac_ideal: details.append(f"🟢 <b>AC值 [{ac_val}]</b>: 离散度健康，符合主流行情。")
+                        else: score -= 15; details.append(f"🔴 <b>AC值 [{ac_val}]</b>: 形态过于极端，扣 15 分。")
+
+                        details.append(f"⚪ <b>012路 [{c0}:{c1}:{c2}]</b>: 基础余数分布结构。")
+                        details.append(f"📏 <b>跨度 [{span_val}]</b>: 首尾极距落差。")
+                        details.append(f"🔥 <b>热温冷 [{h_cnt}:{w_cnt}:{c_cnt}]</b>: 历史活跃度配比。")
+                        details.append(f"🔄 <b>重跳新 [{rep_cnt}:{jmp_cnt}:{new_cnt}]</b>: 近期动态落号追踪。")
+
+                        if c1_tot > 0:
+                            score -= 50; details.append(f"🔴 <b>历史排雷</b>: 致命警告！该组合已中出一等奖过，几率耗尽重扣 50 分！")
+                        elif c2_tot > 0:
+                            score -= 30; details.append(f"🔴 <b>历史排雷</b>: 危险信号！该组合已中出过二等奖，重号疲软扣 30 分。")
+                        else:
+                            details.append(f"🟢 <b>历史排雷</b>: 纯净大底！内含下级奖项特征，突围能动性强。")
+
+                        score = max(1, score)
+                        prob_str = f"<span style='font-size:15px; font-weight:bold; color:{'#00FF7F' if score>=80 else ('#f9d71c' if score>=60 else '#ff4b4b')};'>综合量化评分：{(score/100*99.98):.2f}%</span>"
+
+                        ul_html = f"<ul style='font-size:13px; line-height:1.8; color:var(--text-color); padding-left:20px; margin:15px 0 0 0; list-style-type: disc;'>"
+                        for d in details: ul_html += f"<li style='margin-bottom:6px;'>{d}</li>"
+                        ul_html += "</ul>"
+                        diagnostics_html = f"<div style='font-size:12px; color:#bbb; margin-top:15px;'>💡 以下为该单注号码在全量历史数据中的各项核心形态诊断：</div>{ul_html}"
+
+                    else:
+                        # 【情况 B】如果是多注（拖胆或复式）：在表格内对每一注进行单独的全维文字诊断！
+                        limit_disp = 200
+                        details_html = ["<table style='width:100%; text-align:left; font-size:12px; color:#bbb; border-collapse:collapse; margin-top:10px;'>"]
+                        # 🎯 表头重构：采用三列高阶聚合排版，彻底解决拥挤错位！
+                        details_html.append("<tr style='border-bottom:1px solid #444; background:rgba(0,0,0,0.2);'><th style='padding:8px;'>单式组合明细</th><th>形态特征<br><span style='font-size:10px;'>(奇偶/大小/012/三区)</span></th><th>高阶指标<br><span style='font-size:10px;'>(和值/跨度/AC)</span></th><th>走势追踪<br><span style='font-size:10px;'>(热温冷/重跳新)</span></th><th>历史排雷</th><th>单注评分</th></tr>")
+
+                        total_score_sum = 0
+                        for idx_b, (r, b) in enumerate(expanded_bets):
+                            row_score = 100
+
+                            # 数值计算
+                            sum_val_t = sum(r)
+                            span_val_t = max(r) - min(r)
+                            ac_val_t = len(set(abs(x - y) for x, y in itertools.combinations(r, 2))) - (r_req - 1)
+                            odd_cnt_t = sum(1 for x in r if x % 2 != 0)
+                            big_cnt_t = sum(1 for x in r if x >= (17 if is_ssq else 18))
+
+                            c0, c1, c2 = sum(1 for x in r if x%3==0), sum(1 for x in r if x%3==1), sum(1 for x in r if x%3==2)
+                            h_cnt = sum(1 for x in r if x in hot_set)
+                            c_cnt = sum(1 for x in r if x in cold_set)
+                            w_cnt = r_req - h_cnt - c_cnt
+                            rep_cnt = sum(1 for x in r if x in prev_1_reds)
+                            jmp_cnt = sum(1 for x in r if x in prev_2_reds and x not in prev_1_reds)
+                            new_cnt = r_req - rep_cnt - jmp_cnt
+
+                            if is_ssq:
+                                z1 = sum(1 for x in r if 1 <= x <= 11)
+                                z2 = sum(1 for x in r if 12 <= x <= 22)
+                                z3 = sum(1 for x in r if 23 <= x <= 33)
+                            else:
+                                z1 = sum(1 for x in r if 1 <= x <= 12)
+                                z2 = sum(1 for x in r if 13 <= x <= 24)
+                                z3 = sum(1 for x in r if 25 <= x <= 35)
+                            ratio_t = f"{z1}:{z2}:{z3}"
+
+                            # 1. 栏目一：形态特征 (奇偶/大小/012/三区)
+                            if odd_cnt_t == 0 or odd_cnt_t == r_req: row_score -= 20; odd_str = f"<span style='color:#ff4b4b;'>🔴 奇偶[{odd_cnt_t}:{r_req-odd_cnt_t}]: 极端偏态</span>"
+                            elif odd_cnt_t in [r_req//2, (r_req+1)//2]: odd_str = f"<span style='color:#00FF7F;'>🟢 奇偶[{odd_cnt_t}:{r_req-odd_cnt_t}]: 黄金常态</span>"
+                            else: row_score -= 5; odd_str = f"<span style='color:#f9d71c;'>🟡 奇偶[{odd_cnt_t}:{r_req-odd_cnt_t}]: 轻微偏离</span>"
+
+                            if big_cnt_t == 0 or big_cnt_t == r_req: row_score -= 20; big_str = f"<span style='color:#ff4b4b;'>🔴 大小[{big_cnt_t}:{r_req-big_cnt_t}]: 极端偏态</span>"
+                            elif big_cnt_t in [r_req//2, (r_req+1)//2]: big_str = f"<span style='color:#00FF7F;'>🟢 大小[{big_cnt_t}:{r_req-big_cnt_t}]: 中心潮汐</span>"
+                            else: row_score -= 5; big_str = f"<span style='color:#f9d71c;'>🟡 大小[{big_cnt_t}:{r_req-big_cnt_t}]: 轻微偏移</span>"
+
+                            if z1 == 0 or z2 == 0 or z3 == 0: zone_str = f"<span style='color:#f9d71c;'>🟡 三区[{ratio_t}]: 存在断区</span>"
+                            else: zone_str = f"<span style='color:#00FF7F;'>🟢 三区[{ratio_t}]: 区间均衡</span>"
+
+                            str_012 = f"<span style='color:#bbb;'>⚪ 012路[{c0}:{c1}:{c2}]: 余数结构</span>"
+
+                            # 2. 栏目二：高阶指标 (和值/跨度/AC)
+                            sum_ideal_t = (90, 110) if is_ssq else (75, 105)
+                            if sum_ideal_t[0] <= sum_val_t <= sum_ideal_t[1]: sum_str = f"<span style='color:#00FF7F;'>🟢 和值[{sum_val_t}]: 爆发区间</span>"
+                            else: row_score -= 10; sum_str = f"<span style='color:#f9d71c;'>🟡 和值[{sum_val_t}]: 偏离主轴</span>"
+
+                            ac_ideal_t = [4, 5, 6, 7, 8] if is_ssq else [2, 3, 4, 5]
+                            if ac_val_t in ac_ideal_t: ac_str = f"<span style='color:#00FF7F;'>🟢 AC值[{ac_val_t}]: 形态健康</span>"
+                            else: row_score -= 15; ac_str = f"<span style='color:#ff4b4b;'>🔴 AC值[{ac_val_t}]: 形态极端</span>"
+
+                            span_str = f"<span style='color:#bbb;'>📏 跨度[{span_val_t}]: 极距落差</span>"
+
+                            # 3. 栏目三：走势追踪 (热温冷/重跳新)
+                            str_hwc = f"<span style='color:#bbb;'>🔥 热温冷[{h_cnt}:{w_cnt}:{c_cnt}]</span>"
+                            str_rjn = f"<span style='color:#bbb;'>🔄 重跳新[{rep_cnt}:{jmp_cnt}:{new_cnt}]</span>"
+
+                            # 排雷计算
+                            r_c1 = int(res_df.iloc[idx_b]['1等奖'])
+                            r_c2 = int(res_df.iloc[idx_b]['2等奖'])
+                            if r_c1 > 0: row_score -= 50; mine_str = f"<span style='color:#ff4b4b; font-weight:bold;'>🔴 曾中一等</span>"
+                            elif r_c2 > 0: row_score -= 30; mine_str = f"<span style='color:#f9d71c; font-weight:bold;'>🔴 曾中二等</span>"
+                            else: mine_str = f"<span style='color:#00FF7F;'>🟢 纯净安全</span>"
+
+                            row_score = max(1, row_score)
+                            total_score_sum += row_score
+
+                            # 🎯 表格单元格层级组装：利用 div 换行保持极其整洁的矩阵感
+                            if idx_b < limit_disp:
+                                color_t = '#00FF7F' if row_score >= 80 else ('#f9d71c' if row_score >= 60 else '#ff4b4b')
+                                tr_r_str = " ".join([f"{int(x):02d}" for x in r])
+                                tr_b_str = " ".join([f"{int(x):02d}" for x in b])
+                                combo_td = f"<span style='color:#ff4b4b; font-weight:bold;'>{tr_r_str}</span> <span style='color:#00bcd4; font-weight:bold;'>+ {tr_b_str}</span>"
+
+                                td_form = f"<div style='margin-bottom:4px;'>{odd_str}</div><div style='margin-bottom:4px;'>{big_str}</div><div style='margin-bottom:4px;'>{str_012}</div><div>{zone_str}</div>"
+                                td_metric = f"<div style='margin-bottom:4px;'>{sum_str}</div><div style='margin-bottom:4px;'>{span_str}</div><div>{ac_str}</div>"
+                                td_track = f"<div style='margin-bottom:4px;'>{str_hwc}</div><div>{str_rjn}</div>"
+
+                                row_html = f"<tr style='border-bottom:1px solid #333;'><td style='padding:8px;'>{combo_td}</td><td>{td_form}</td><td>{td_metric}</td><td>{td_track}</td><td>{mine_str}</td><td><b style='color:{color_t}'>{(row_score/100*99.98):.2f}%</b></td></tr>"
+                                details_html.append(row_html)
+
+                        details_html.append("</table>")
+                        if len(expanded_bets) > limit_disp:
+                            details_html.append(f"<div style='text-align:center; padding:5px; color:#888;'>...大底过于庞大，为防卡顿，仅展示前 {limit_disp} 注文字诊断明细...</div>")
+
+                        # 综合平均打分
+                        avg_score = (total_score_sum / len(expanded_bets)) if len(expanded_bets) > 0 else 0
+                        prob_str = f"<span style='font-size:14px; font-weight:bold; color:{'#00FF7F' if avg_score>=80 else ('#f9d71c' if avg_score>=60 else '#ff4b4b')};'>全盘综合量化评分：{(avg_score/100*99.98):.2f}%</span>"
+
+                        table_str = "".join(details_html)
+                        diagnostics_html = f"<details style='margin-top:15px; cursor:pointer;'><summary style='color:#bbb; font-size:13px; font-weight:bold; border: 1px solid #333; padding: 6px; border-radius: 4px; background: rgba(0,0,0,0.3);'>👉 点击展开查看 {len(expanded_bets)} 注单式拆解的【九大核心指标】深度诊断报告</summary><div style='max-height: 450px; overflow-y: auto; margin-top:10px; padding-right:5px; scrollbar-width:thin;'>{table_str}</div></details>"
+
+                    # 将评测文本与图表合并为终极主卡片
+                    card_html = (
+                        f"<div style='padding:18px; background-color: rgba(255,255,255,0.02); border-radius:6px; border:1px solid rgba(0, 188, 212, 0.25); margin-bottom: 15px;'>"
+                        f"<div style='display:flex; justify-content:space-between; align-items:center;'>"
+                        f"<span style='font-size:13px; color:#00bcd4; font-weight:bold;'>组合大底 #{i + 1} ({combo['type']})</span>"
+                        f"{prob_str}"
+                        f"</div>"
+                        f"<h3 style='letter-spacing:1px; margin:10px 0; font-size:18px; text-align:left;'>{r_show} <span style='color:#00bcd4;'>+</span> {b_show}</h3>"
+                        f"<div style='font-size:12px; color:#bbb; margin-bottom:5px;'>💡 以下为该阵列在全量历史数据中的汇总战报：</div>"
+                        f"{prize_html}"
+                        f"{diagnostics_html}"
+                        f"</div>"
+                    )
+                    st.markdown(card_html, unsafe_allow_html=True)
 # ----------------- 🚀 新增：全开放群聊大厅大窗口 -----------------
     elif st.session_state.main_nav == '沟通大厅':
         if st.session_state.current_user is None:
